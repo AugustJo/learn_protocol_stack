@@ -294,10 +294,10 @@ int ip_output(struct sk_buff *skb)
 		return ip_finish_output(skb);
 }
 
-int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
+int ip_queue_xmit(struct sk_buff *skb, int ipfragok)			//tcp 和 sctp 使用
 {
 	struct sock *sk = skb->sk;
-	struct inet_opt *inet = inet_sk(sk);
+	struct inet_opt *inet = inet_sk(sk);			//可能是前期分配了inet_sock的空间
 	struct ip_options *opt = inet->opt;
 	struct rtable *rt;
 	struct iphdr *iph;
@@ -306,18 +306,18 @@ int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
 	 * f.e. by something like SCTP.
 	 */
 	rt = (struct rtable *) skb->dst;
-	if (rt != NULL)
+	if (rt != NULL)		//已经被设定正确路由信息，无需查询路由表 (SCTP)
 		goto packet_routed;
 
-	/* Make sure we can route this packet. */
-	rt = (struct rtable *)__sk_dst_check(sk, 0);
+	/* Make sure we can route this packet. */		//sk(sock)由上层协议设置
+	rt = (struct rtable *)__sk_dst_check(sk, 0);	//检查sk是否缓存了一条路径
 	if (rt == NULL) {
 		u32 daddr;
 
 		/* Use correct destination address if we have options. */
 		daddr = inet->daddr;
 		if(opt && opt->srr)
-			daddr = opt->faddr;
+			daddr = opt->faddr;				//如果设置了srr 把下一跳地址设为目的地址
 
 		{
 			struct flowi fl = { .oif = sk->sk_bound_dev_if,
@@ -334,22 +334,22 @@ int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
 			 * keep trying until route appears or the connection times
 			 * itself out.
 			 */
-			if (ip_route_output_flow(&rt, &fl, sk, 0))
+			if (ip_route_output_flow(&rt, &fl, sk, 0))		//查询路由系统, 找到下一跳地址
 				goto no_route;
 		}
-		__sk_dst_set(sk, &rt->u.dst);
+		__sk_dst_set(sk, &rt->u.dst);	//重新设置sk->sk_dst_cache缓存
 		tcp_v4_setup_caps(sk, &rt->u.dst);
 	}
-	skb->dst = dst_clone(&rt->u.dst);
+	skb->dst = dst_clone(&rt->u.dst);	//加一次引用
 
 packet_routed:
-	if (opt && opt->is_strictroute && rt->rt_dst != rt->rt_gateway)
+	if (opt && opt->is_strictroute && rt->rt_dst != rt->rt_gateway)		//严格路由 如果下一跳与路由表不符则丢包
 		goto no_route;
 
-	/* OK, we know where to send it, allocate and build IP header. */
-	iph = (struct iphdr *) skb_push(skb, sizeof(struct iphdr) + (opt ? opt->optlen : 0));
-	*((__u16 *)iph)	= htons((4 << 12) | (5 << 8) | (inet->tos & 0xff));
-	iph->tot_len = htons(skb->len);
+	/* 拥有传输封包所有信息, 构建ip报头 */
+	iph = (struct iphdr *) skb_push(skb, sizeof(struct iphdr) + (opt ? opt->optlen : 0));	//skb从L4层传来，只包含ip有效载荷, skb->data之前指向L3有效载荷, 现在前移指向ip报头开端
+	*((__u16 *)iph)	= htons((4 << 12) | (5 << 8) | (inet->tos & 0xff)); //设定 版本 报头长度 TOS (共享一个16bit)
+	iph->tot_len = htons(skb->len);			//ip数据报总长度
 	if (ip_dont_fragment(sk, &rt->u.dst) && !ipfragok)
 		iph->frag_off = htons(IP_DF);
 	else
@@ -362,16 +362,16 @@ packet_routed:
 	/* Transport layer set skb->h.foo itself. */
 
 	if (opt && opt->optlen) {
-		iph->ihl += opt->optlen >> 2;
-		ip_options_build(skb, opt, inet->daddr, rt, 0);
+		iph->ihl += opt->optlen >> 2;		//如果含有选项, 重新设置报头长度
+		ip_options_build(skb, opt, inet->daddr, rt, 0);		
 	}
 
-	ip_select_ident_more(iph, &rt->u.dst, sk, skb_shinfo(skb)->tso_segs);
+	ip_select_ident_more(iph, &rt->u.dst, sk, skb_shinfo(skb)->tso_segs);		//判断ip是否分片(编号相同, 偏移不同？)
 
 	/* Add an IP checksum. */
 	ip_send_check(iph);
 
-	skb->priority = sk->sk_priority;
+	skb->priority = sk->sk_priority;		//不同优先级排入不同外出队列
 
 	return NF_HOOK(PF_INET, NF_IP_LOCAL_OUT, skb, NULL, rt->u.dst.dev,
 		       dst_output);
