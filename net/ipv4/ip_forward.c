@@ -42,16 +42,16 @@
 #include <net/route.h>
 #include <net/xfrm.h>
 
-static inline int ip_forward_finish(struct sk_buff *skb)
+static inline int ip_forward_finish(struct sk_buff *skb)		//挂在forward链上，封包已准备就绪，可以发送到另一个系统
 {
 	struct ip_options * opt	= &(IPCB(skb)->opt);
 
 	IP_INC_STATS_BH(IPSTATS_MIB_OUTFORWDATAGRAMS);
 
 	if (unlikely(opt->optlen))
-		ip_forward_options(skb);
+		ip_forward_options(skb);		//处理选项
 
-	return dst_output(skb);
+	return dst_output(skb);				//封包由dst_output传输出去
 }
 
 int ip_forward(struct sk_buff *skb)
@@ -63,13 +63,13 @@ int ip_forward(struct sk_buff *skb)
 	if (!xfrm4_policy_check(NULL, XFRM_POLICY_FWD, skb))
 		goto drop;
 
-	if (IPCB(skb)->opt.router_alert && ip_call_ra_chain(skb))
+	if (IPCB(skb)->opt.router_alert && ip_call_ra_chain(skb))	//router alert走加急通道
 		return NET_RX_SUCCESS;
 
-	if (skb->pkt_type != PACKET_HOST)
+	if (skb->pkt_type != PACKET_HOST)	//由L2层函数设置
 		goto drop;
 
-	skb->ip_summed = CHECKSUM_NONE;
+	skb->ip_summed = CHECKSUM_NONE;		//转发的包不需要校验和
 	
 	/*
 	 *	According to the RFC, we must first decrease the TTL field. If
@@ -79,20 +79,20 @@ int ip_forward(struct sk_buff *skb)
 
 	iph = skb->nh.iph;
 
-	if (iph->ttl <= 1)
+	if (iph->ttl <= 1)			//ttl小于1丢掉
                 goto too_many_hops;
 
 	if (!xfrm4_route_forward(skb))
 		goto drop;
 
 	iph = skb->nh.iph;
-	rt = (struct rtable*)skb->dst;
+	rt = (struct rtable*)skb->dst;		//在分配空间时就按rtable来？
 
-	if (opt->is_strictroute && rt->rt_dst != rt->rt_gateway)
+	if (opt->is_strictroute && rt->rt_dst != rt->rt_gateway)		
 		goto sr_failed;
 
 	/* We are about to mangle packet. Copy it! */
-	if (skb_cow(skb, LL_RESERVED_SPACE(rt->u.dst.dev)+rt->u.dst.header_len))
+	if (skb_cow(skb, LL_RESERVED_SPACE(rt->u.dst.dev)+rt->u.dst.header_len))	//此处copy skb 
 		goto drop;
 	iph = skb->nh.iph;
 
@@ -103,10 +103,10 @@ int ip_forward(struct sk_buff *skb)
 	 *	We now generate an ICMP HOST REDIRECT giving the route
 	 *	we calculated.
 	 */
-	if (rt->rt_flags&RTCF_DOREDIRECT && !opt->srr)
-		ip_rt_send_redirect(skb);
+	if (rt->rt_flags&RTCF_DOREDIRECT && !opt->srr)		//未设置源路由情况下，如果有更好的路径则重定向
+		ip_rt_send_redirect(skb);						//发送icmp报文告知源主机
 
-	skb->priority = rt_tos2priority(iph->tos);
+	skb->priority = rt_tos2priority(iph->tos);			//由QoS层使用
 
 	return NF_HOOK(PF_INET, NF_IP_FORWARD, skb, skb->dev, rt->u.dst.dev,
 		       ip_forward_finish);

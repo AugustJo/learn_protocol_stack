@@ -66,11 +66,11 @@ struct dst_entry
 	struct hh_cache		*hh;
 	struct xfrm_state	*xfrm;
 
-	int			(*input)(struct sk_buff*);
+	int			(*input)(struct sk_buff*);	//input函数会设成ip_local_deliver或ip_forward
 	int			(*output)(struct sk_buff*);
 
 #ifdef CONFIG_NET_CLS_ROUTE
-	__u32			tclassid;
+	__u32			tclassid;  //高16位in 低16位out
 #endif
 
 	struct  dst_ops	        *ops;
@@ -226,7 +226,7 @@ static inline int dst_output(struct sk_buff *skb)
 
 		if (likely(err == 0))
 			return err;
-		if (unlikely(err != NET_XMIT_BYPASS))
+		if (unlikely(err != NET_XMIT_BYPASS))		//如果output函数返回 NET_XMIT_BYPASS 则会被连续调用数次
 			return err;
 	}
 }

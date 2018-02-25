@@ -1813,7 +1813,7 @@ martian_source:
 	goto e_inval;
 }
 
-int ip_route_input(struct sk_buff *skb, u32 daddr, u32 saddr,
+int ip_route_input(struct sk_buff *skb, u32 daddr, u32 saddr,				//初始化skb->dst信息
 		   u8 tos, struct net_device *dev)
 {
 	struct rtable * rth;
