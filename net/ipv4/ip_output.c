@@ -705,12 +705,12 @@ csum_page(struct page *page, int offset, int copy)
  *
  *	LATER: length must be adjusted by pad at tail, when it is required.
  */
-int ip_append_data(struct sock *sk,
+int ip_append_data(struct sock *sk,							//将数据放在大小合适的缓冲区中，后续函数借此构成一些片段，提高效率
 		   int getfrag(void *from, char *to, int offset, int len,
 			       int odd, struct sk_buff *skb),
-		   void *from, int length, int transhdrlen,
-		   struct ipcm_cookie *ipc, struct rtable *rt,
-		   unsigned int flags)
+		   void *from, int length, int transhdrlen,		//from: 指向L4层载荷的指针			length: L4报头和载荷长度         transhdrlen: L4报头长度
+		   struct ipcm_cookie *ipc, struct rtable *rt,		//rt: 路由表缓存项目
+		   unsigned int flags)			//flag: MSG_MORE MSG_DONTWAIT MSG_PROBE
 {
 	struct inet_opt *inet = inet_sk(sk);
 	struct sk_buff *skb;
