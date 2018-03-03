@@ -266,14 +266,14 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 /*
  * 	Deliver IP Packets to the higher protocol layers.
  */ 
-int ip_local_deliver(struct sk_buff *skb)
+int ip_local_deliver(struct sk_buff *skb)			//dst 为本机时调用 ip_local_deliver
 {
 	/*
 	 *	Reassemble IP fragments.
 	 */
 
 	if (skb->nh.iph->frag_off & htons(IP_MF|IP_OFFSET)) {
-		skb = ip_defrag(skb);
+		skb = ip_defrag(skb);		//处理分段(在本地接收过程中存在大量封包重组)
 		if (!skb)
 			return 0;
 	}
@@ -282,23 +282,23 @@ int ip_local_deliver(struct sk_buff *skb)
 		       ip_local_deliver_finish);
 }
 
-static inline int ip_rcv_finish(struct sk_buff *skb)
+static inline int ip_rcv_finish(struct sk_buff *skb) //决定封包是本地传递还是转发,分析和处理一些ip选项
 {
 	struct net_device *dev = skb->dev;
-	struct iphdr *iph = skb->nh.iph;
+	struct iphdr *iph = skb->nh.iph;  //有可能是ipv6 ipv4 arp raw(未加工)几种，此处确定为ipv4
 
 	/*
 	 *	Initialise the virtual path cache for the packet. It describes
 	 *	how the packet travels inside Linux networking.
 	 */ 
 	if (skb->dst == NULL) {
-		if (ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))
+		if (ip_route_input(skb, iph->daddr, iph->saddr, iph->tos, dev))  //路由子系统说目的地无法到达则丢弃封包
 			goto drop; 
 	}
 
-#ifdef CONFIG_NET_CLS_ROUTE
+#ifdef CONFIG_NET_CLS_ROUTE			//QoS统计信息更新
 	if (skb->dst->tclassid) {
-		struct ip_rt_acct *st = ip_rt_acct + 256*smp_processor_id();
+		struct ip_rt_acct *st = ip_rt_acct + 256*smp_processor_id();  //ip route account
 		u32 idx = skb->dst->tclassid;
 		st[idx&0xFF].o_packets++;
 		st[idx&0xFF].o_bytes+=skb->len;
@@ -307,7 +307,7 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 	}
 #endif
 
-	if (iph->ihl > 5) {
+	if (iph->ihl > 5) {  //当包头长度大于20字节(5dw),表示有选项存在
 		struct ip_options *opt;
 
 		/* It looks as overkill, because not all
@@ -318,7 +318,8 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 		                                      --ANK (980813)
 		*/
 
-		if (skb_cow(skb, skb_headroom(skb))) {
+		if (skb_cow(skb, skb_headroom(skb))) {	//copy on write(写时拷贝) 当空间不足时skb_cow返回错误
+												//当realloc时, skb指向新地址
 			IP_INC_STATS_BH(IPSTATS_MIB_INDISCARDS);
 			goto drop;
 		}
@@ -326,12 +327,12 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 
 		if (ip_options_compile(NULL, skb))
 			goto inhdr_error;
-
-		opt = &(IPCB(skb)->opt);
-		if (opt->srr) {
+												//ip_option_compile 将选项存储在cb(control buffer)中
+		opt = &(IPCB(skb)->opt);				//处理部分选项
+		if (opt->srr) {	//source routing
 			struct in_device *in_dev = in_dev_get(dev);
 			if (in_dev) {
-				if (!IN_DEV_SOURCE_ROUTE(in_dev)) {
+				if (!IN_DEV_SOURCE_ROUTE(in_dev)) {		//如果被配置为不能使用IP源路由, 则封包被丢弃
 					if (IN_DEV_LOG_MARTIANS(in_dev) && net_ratelimit())
 						printk(KERN_INFO "source route option %u.%u.%u.%u -> %u.%u.%u.%u\n",
 						       NIPQUAD(iph->saddr), NIPQUAD(iph->daddr));
@@ -340,7 +341,7 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 				}
 				in_dev_put(in_dev);
 			}
-			if (ip_options_rcv_srr(skb))
+			if (ip_options_rcv_srr(skb))	//当允许使用IP源路由       	  ip_options_rcv_srr设定skb->dst
 				goto drop;
 		}
 	}

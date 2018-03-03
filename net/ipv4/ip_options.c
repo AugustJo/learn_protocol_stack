@@ -566,7 +566,7 @@ void ip_forward_options(struct sk_buff *skb)
 	}
 }
 
-int ip_options_rcv_srr(struct sk_buff *skb)
+int ip_options_rcv_srr(struct sk_buff *skb) //遍历ip options 找到下一跳地址
 {
 	struct ip_options *opt = &(IPCB(skb)->opt);
 	int srrspace, srrptr;
@@ -608,7 +608,7 @@ int ip_options_rcv_srr(struct sk_buff *skb)
 			return -EINVAL;
 		}
 		ip_rt_put(rt);
-		if (rt2->rt_type != RTN_LOCAL)
+		if (rt2->rt_type != RTN_LOCAL)	//如果下一跳是本地地址则继续找
 			break;
 		/* Superfast 8) loopback forward */
 		memcpy(&iph->daddr, &optptr[srrptr-1], 4);
