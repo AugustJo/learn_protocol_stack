@@ -791,19 +791,19 @@ int ip_append_data(struct sock *sk,							//将数据放在大小合适的缓冲
 	 * adding appropriate IP header.
 	 */
 
-	if ((skb = skb_peek_tail(&sk->sk_write_queue)) == NULL)
+	if ((skb = skb_peek_tail(&sk->sk_write_queue)) == NULL)		//当队列为空时就强制分配
 		goto alloc_new_skb;
 
-	while (length > 0) {
+	while (length > 0) {		//length代表剩余要传输的数据量
 		/* Check if the remaining data fits into current packet. */
 		copy = mtu - skb->len;
 		if (copy < length)
-			copy = maxfraglen - skb->len;
-		if (copy <= 0) {
+			copy = maxfraglen - skb->len;		//copy初始化为当前ip片段所剩空间
+		if (copy <= 0) {		//需要另外一个片段
 			char *data;
-			unsigned int datalen;
-			unsigned int fraglen;
-			unsigned int fraggap;
+			unsigned int datalen;		//要拷贝到缓冲区的数据量
+			unsigned int fraglen;		//片段能容纳最大数据量
+			unsigned int fraggap;		//缓冲区间隔(8字节对齐)
 			unsigned int alloclen;
 			struct sk_buff *skb_prev;
 alloc_new_skb:
@@ -820,13 +820,13 @@ alloc_new_skb:
 			datalen = length + fraggap;
 			if (datalen > mtu - fragheaderlen)
 				datalen = maxfraglen - fragheaderlen;
-			fraglen = datalen + fragheaderlen;
+			fraglen = datalen + fragheaderlen;		//fraglen <= mtu, 有可能填不满
 
 			if ((flags & MSG_MORE) && 
-			    !(rt->u.dst.dev->features&NETIF_F_SG))
+			    !(rt->u.dst.dev->features&NETIF_F_SG))	//如果后续有报文, 且不支持分散/聚集io, 缓冲区分配mtu大小
 				alloclen = mtu;
 			else
-				alloclen = datalen + fragheaderlen;
+				alloclen = datalen + fragheaderlen;		//否则分配够用的大小即可
 
 			/* The last fragment gets additional space at tail.
 			 * Note, with MSG_MORE we overallocate on fragments,
@@ -836,7 +836,7 @@ alloc_new_skb:
 			if (datalen == length)
 				alloclen += rt->u.dst.trailer_len;
 
-			if (transhdrlen) {
+			if (transhdrlen) {		//如果是首包
 				skb = sock_alloc_send_skb(sk, 
 						alloclen + hh_len + 15,
 						(flags & MSG_DONTWAIT), &err);
@@ -856,7 +856,7 @@ alloc_new_skb:
 			/*
 			 *	Fill in the control structures
 			 */
-			skb->ip_summed = csummode;
+			skb->ip_summed = csummode;		//指出出口设备是否提供L4硬件校验功能
 			skb->csum = 0;
 			skb_reserve(skb, hh_len);
 
