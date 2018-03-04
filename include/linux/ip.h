@@ -135,13 +135,13 @@ struct inet_opt {
 	 */
 	struct {
 		unsigned int		flags;
-		unsigned int		fragsize;
+		unsigned int		fragsize;		//mtu
 		struct ip_options	*opt;
 		struct rtable		*rt;
 		int			length; /* Total length of all frames */
 		u32			addr;
 		struct flowi		fl;
-	} cork;
+	} cork;		//每个IP分片头的信息
 };
 
 #define IPCORK_OPT	1	/* ip-options has been held in ipcork.opt */

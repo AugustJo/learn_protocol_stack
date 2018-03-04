@@ -709,7 +709,7 @@ int ip_append_data(struct sock *sk,							//将数据放在大小合适的缓冲
 		   int getfrag(void *from, char *to, int offset, int len,
 			       int odd, struct sk_buff *skb),
 		   void *from, int length, int transhdrlen,		//from: 指向L4层载荷的指针			length: L4报头和载荷长度         transhdrlen: L4报头长度
-		   struct ipcm_cookie *ipc, struct rtable *rt,		//rt: 路由表缓存项目
+		   struct ipcm_cookie *ipc, struct rtable *rt,		//rt: 路由表缓存项目			ipc: 正确转发封包所必须的信息
 		   unsigned int flags)			//flag: MSG_MORE MSG_DONTWAIT MSG_PROBE
 {
 	struct inet_opt *inet = inet_sk(sk);
@@ -728,37 +728,37 @@ int ip_append_data(struct sock *sk,							//将数据放在大小合适的缓冲
 	if (flags&MSG_PROBE)
 		return 0;
 
-	if (skb_queue_empty(&sk->sk_write_queue)) {
+	if (skb_queue_empty(&sk->sk_write_queue)) {			//如果是第一个IP片段
 		/*
 		 * setup for corking.
 		 */
 		opt = ipc->opt;
 		if (opt) {
 			if (inet->cork.opt == NULL) {
-				inet->cork.opt = kmalloc(sizeof(struct ip_options) + 40, sk->sk_allocation);
+				inet->cork.opt = kmalloc(sizeof(struct ip_options) + 40, sk->sk_allocation);		//optlen 最大40 bytes
 				if (unlikely(inet->cork.opt == NULL))
 					return -ENOBUFS;
 			}
-			memcpy(inet->cork.opt, opt, sizeof(struct ip_options)+opt->optlen);
-			inet->cork.flags |= IPCORK_OPT;
-			inet->cork.addr = ipc->addr;
+			memcpy(inet->cork.opt, opt, sizeof(struct ip_options)+opt->optlen);		//ip_options 指出每个选项是否存在, 偏移量
+			inet->cork.flags |= IPCORK_OPT;		//如果有opt则标记
+			inet->cork.addr = ipc->addr;		//cork.addr 是什么
 		}
 		dst_hold(&rt->u.dst);
-		inet->cork.fragsize = mtu = dst_pmtu(&rt->u.dst);
+		inet->cork.fragsize = mtu = dst_pmtu(&rt->u.dst);		//路径mtu
 		inet->cork.rt = rt;
 		inet->cork.length = 0;
 		sk->sk_sndmsg_page = NULL;
 		sk->sk_sndmsg_off = 0;
-		if ((exthdrlen = rt->u.dst.header_len) != 0) {
+		if ((exthdrlen = rt->u.dst.header_len) != 0) {			//headerlen 返回主缓冲区中的数据量
 			length += exthdrlen;
-			transhdrlen += exthdrlen;
+			transhdrlen += exthdrlen;			//exthdrlen: 外部报头len		transhdrlen: 传输报头len 
 		}
 	} else {
 		rt = inet->cork.rt;
 		if (inet->cork.flags & IPCORK_OPT)
 			opt = inet->cork.opt;
 
-		transhdrlen = 0;
+		transhdrlen = 0;			//transhdrlen ！= 0 表示工作在第一个片段				transhdrlen == 0 表示未工作在第一片段
 		exthdrlen = 0;
 		mtu = inet->cork.fragsize;
 	}
