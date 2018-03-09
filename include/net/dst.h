@@ -35,7 +35,7 @@
 
 struct sk_buff;
 
-struct dst_entry
+struct dst_entry		//目的入口
 {
 	struct dst_entry        *next;
 	atomic_t		__refcnt;	/* client references	*/

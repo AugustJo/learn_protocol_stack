@@ -708,8 +708,11 @@ csum_page(struct page *page, int offset, int copy)
 int ip_append_data(struct sock *sk,							//将数据放在大小合适的缓冲区中，后续函数借此构成一些片段，提高效率
 		   int getfrag(void *from, char *to, int offset, int len,
 			       int odd, struct sk_buff *skb),
-		   void *from, int length, int transhdrlen,		//from: 指向L4层载荷的指针			length: L4报头和载荷长度         transhdrlen: L4报头长度
-		   struct ipcm_cookie *ipc, struct rtable *rt,		//rt: 路由表缓存项目			ipc: 正确转发封包所必须的信息
+		   void *from, 		//from: 指向L4层载荷的指针
+		   int length, 		//length: 要传输的数据量(L4报头和载荷长度    )也表示剩余数据量
+		   int transhdrlen,					//transhdrlen: L4报头长度
+		   struct ipcm_cookie *ipc, 
+		   struct rtable *rt,		//rt: 路由表缓存项目			ipc: 正确转发封包所必须的信息
 		   unsigned int flags)			//flag: MSG_MORE MSG_DONTWAIT MSG_PROBE
 {
 	struct inet_opt *inet = inet_sk(sk);
@@ -717,12 +720,13 @@ int ip_append_data(struct sock *sk,							//将数据放在大小合适的缓冲
 
 	struct ip_options *opt = NULL;
 	int hh_len;
-	int exthdrlen;
+	int exthdrlen;	//exthdrlen: 外部报头len	(IPsec报头)
 	int mtu;
-	int copy;
+	int copy;		//可用空间量
 	int err;
 	int offset = 0;
-	unsigned int maxfraglen, fragheaderlen;
+	unsigned int maxfraglen, 		//maxfraglen IP片段最大尺寸
+		fragheaderlen;		//fragheaderlen 是报头尺寸 
 	int csummode = CHECKSUM_NONE;
 
 	if (flags&MSG_PROBE)
@@ -745,13 +749,13 @@ int ip_append_data(struct sock *sk,							//将数据放在大小合适的缓冲
 		}
 		dst_hold(&rt->u.dst);
 		inet->cork.fragsize = mtu = dst_pmtu(&rt->u.dst);		//路径mtu
-		inet->cork.rt = rt;
+		inet->cork.rt = rt;		//用于传输此IP数据段的路由表缓存项
 		inet->cork.length = 0;
 		sk->sk_sndmsg_page = NULL;
 		sk->sk_sndmsg_off = 0;
-		if ((exthdrlen = rt->u.dst.header_len) != 0) {			//headerlen 返回主缓冲区中的数据量
+		if ((exthdrlen = rt->u.dst.header_len) != 0) {			//header_len 返回主缓冲区中的数据量
 			length += exthdrlen;
-			transhdrlen += exthdrlen;			//exthdrlen: 外部报头len		transhdrlen: 传输报头len 
+			transhdrlen += exthdrlen;			//	transhdrlen: 传输报头len(TCP/UDP/ICMP报头)
 		}
 	} else {
 		rt = inet->cork.rt;
@@ -765,7 +769,7 @@ int ip_append_data(struct sock *sk,							//将数据放在大小合适的缓冲
 	hh_len = LL_RESERVED_SPACE(rt->u.dst.dev);
 
 	fragheaderlen = sizeof(struct iphdr) + (opt ? opt->optlen : 0);
-	maxfraglen = ((mtu - fragheaderlen) & ~7) + fragheaderlen;
+	maxfraglen = ((mtu - fragheaderlen) & ~7) + fragheaderlen;		//8字节对齐
 
 	if (inet->cork.length + length > 0xFFFF - fragheaderlen) {
 		ip_local_error(sk, EMSGSIZE, rt->rt_dst, inet->dport, mtu-exthdrlen);
@@ -817,8 +821,8 @@ alloc_new_skb:
 			 * If remaining data exceeds the mtu,
 			 * we know we need more fragment(s).
 			 */
-			datalen = length + fraggap;
-			if (datalen > mtu - fragheaderlen)
+			datalen = length + fraggap;		//length = L4数据 + L4报头 + 外部报头
+			if (datalen > mtu - fragheaderlen)		//一个片段装不下
 				datalen = maxfraglen - fragheaderlen;
 			fraglen = datalen + fragheaderlen;		//fraglen <= mtu, 有可能填不满
 
@@ -866,7 +870,7 @@ alloc_new_skb:
 			data = skb_put(skb, fraglen);
 			skb->nh.raw = data + exthdrlen;
 			data += fragheaderlen;
-			skb->h.raw = data + exthdrlen;
+			skb->h.raw = data + exthdrlen;		//h.raw指向ip报头与extra报头之后的位置
 
 			if (fraggap) {
 				skb->csum = skb_copy_and_csum_bits(
