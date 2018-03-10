@@ -745,7 +745,7 @@ int ip_append_data(struct sock *sk,							//将数据放在大小合适的缓冲
 			}
 			memcpy(inet->cork.opt, opt, sizeof(struct ip_options)+opt->optlen);		//ip_options 指出每个选项是否存在, 偏移量
 			inet->cork.flags |= IPCORK_OPT;		//如果有opt则标记
-			inet->cork.addr = ipc->addr;		//cork.addr 是什么
+			inet->cork.addr = ipc->addr;		//目的IP
 		}
 		dst_hold(&rt->u.dst);
 		inet->cork.fragsize = mtu = dst_pmtu(&rt->u.dst);		//路径mtu
@@ -867,12 +867,12 @@ alloc_new_skb:
 			/*
 			 *	Find where to start putting bytes.
 			 */
-			data = skb_put(skb, fraglen);
+			data = skb_put(skb, fraglen);	//data指向 fraglen之前, 数据起始处
 			skb->nh.raw = data + exthdrlen;
 			data += fragheaderlen;
 			skb->h.raw = data + exthdrlen;		//h.raw指向ip报头与extra报头之后的位置
 
-			if (fraggap) {
+			if (fraggap) {		//如果有fraggap 重新计算校验和
 				skb->csum = skb_copy_and_csum_bits(
 					skb_prev, maxfraglen,
 					data + transhdrlen, fraggap, 0);
@@ -882,8 +882,9 @@ alloc_new_skb:
 				skb_trim(skb_prev, maxfraglen);
 			}
 
-			copy = datalen - transhdrlen - fraggap;
-			if (copy > 0 && getfrag(from, data + transhdrlen, offset, copy, fraggap, skb) < 0) {
+			copy = datalen - transhdrlen - fraggap;		//拷贝报头
+			if (copy > 0 			//copy > 0 表示最后一个skb有可用空间
+				&& getfrag(from, data + transhdrlen, offset, copy, fraggap, skb) < 0) {	//从from 拷贝 copy个字节去offset + data + transhdrlen
 				err = -EFAULT;
 				kfree_skb(skb);
 				goto error;
@@ -909,14 +910,14 @@ alloc_new_skb:
 			unsigned int off;
 
 			off = skb->len;
-			if (getfrag(from, skb_put(skb, copy), 
+			if (getfrag(from, skb_put(skb, copy), 			//拷贝数据
 					offset, copy, off, skb) < 0) {
 				__skb_trim(skb, off);
 				err = -EFAULT;
 				goto error;
 			}
 		} else {
-			int i = skb_shinfo(skb)->nr_frags;
+			int i = skb_shinfo(skb)->nr_frags;		//frags 数组中有多少成员
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i-1];
 			struct page *page = sk->sk_sndmsg_page;
 			int off = sk->sk_sndmsg_off;

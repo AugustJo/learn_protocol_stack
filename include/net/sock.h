@@ -250,7 +250,7 @@ struct sock {
 	struct socket		*sk_socket;
 	void			*sk_user_data;
 	struct module		*sk_owner;
-	struct page		*sk_sndmsg_page;
+	struct page		*sk_sndmsg_page;		//物理页面地址
 	__u32			sk_sndmsg_off;
 	struct sk_buff		*sk_send_head;
 	int			sk_write_pending;

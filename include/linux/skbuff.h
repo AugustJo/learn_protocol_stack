@@ -139,7 +139,7 @@ struct skb_frag_struct {
  */
 struct skb_shared_info {
 	atomic_t	dataref;
-	unsigned int	nr_frags;
+	unsigned int	nr_frags;		//frags 数组中有多少成员
 	unsigned short	tso_size;
 	unsigned short	tso_segs;
 	struct sk_buff	*frag_list;
@@ -236,7 +236,7 @@ struct sk_buff {
 	unsigned int		len,		//缓冲区中数据块的大小(包括协议报头)
 				data_len,			//片段中数据大小
 				mac_len,
-				csum;
+				csum;		//L4 载荷校验和
 	unsigned char		local_df,
 				cloned,
 				pkt_type,

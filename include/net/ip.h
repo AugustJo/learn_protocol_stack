@@ -49,8 +49,8 @@ struct inet_skb_parm
 
 struct ipcm_cookie
 {
-	u32			addr;
-	int			oif;
+	u32			addr;			//目的IP
+	int			oif;			//出口设备
 	struct ip_options	*opt;
 };
 
