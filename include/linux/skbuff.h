@@ -662,7 +662,7 @@ static inline unsigned int skb_headlen(const struct sk_buff *skb)
 	return skb->len - skb->data_len;
 }
 
-static inline int skb_pagelen(const struct sk_buff *skb)
+static inline int skb_pagelen(const struct sk_buff *skb)		//获取主缓冲区和frags数据总长度
 {
 	int i, len = 0;
 

@@ -437,7 +437,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))		//output �
 	struct rtable *rt = (struct rtable*)skb->dst;
 	int err = 0;
 
-	dev = rt->u.dst.dev;
+	dev = rt->u.dst.dev;		//出口设备dev
 
 	/*
 	 *	Point into the IP datagram header.
@@ -466,14 +466,14 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))		//output �
 	 * LATER: this step can be merged to real generation of fragments,
 	 * we can switch to copy when see the first bad fragment.
 	 */
-	if (skb_shinfo(skb)->frag_list) {
+	if (skb_shinfo(skb)->frag_list) {		//快速分段
 		struct sk_buff *frag;
 		int first_len = skb_pagelen(skb);
 
 		if (first_len - hlen > mtu ||
 		    ((first_len - hlen) & 7) ||
 		    (iph->frag_off & htons(IP_MF|IP_OFFSET)) ||
-		    skb_cloned(skb))
+		    skb_cloned(skb))		//片段不能被共享, 否则无法对其修改
 			goto slow_path;
 
 		for (frag = skb_shinfo(skb)->frag_list; frag; frag = frag->next) {
@@ -497,20 +497,20 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))		//output �
 		skb->data_len = first_len - skb_headlen(skb);
 		skb->len = first_len;
 		iph->tot_len = htons(first_len);
-		iph->frag_off |= htons(IP_MF);
+		iph->frag_off |= htons(IP_MF);		//将 more fragment 置1
 		ip_send_check(iph);
 
 		for (;;) {
 			/* Prepare header of the next frame,
 			 * before previous one went down. */
-			if (frag) {
+			if (frag) {		//每个frag成为一个ip分片
 				frag->h.raw = frag->data;
 				frag->nh.raw = __skb_push(frag, hlen);
-				memcpy(frag->nh.raw, iph, hlen);
+				memcpy(frag->nh.raw, iph, hlen);		//将ip报头拷到分段中
 				iph = frag->nh.iph;
-				iph->tot_len = htons(frag->len);
-				ip_copy_metadata(frag, skb);
-				if (offset == 0)
+				iph->tot_len = htons(frag->len);		
+				ip_copy_metadata(frag, skb);		//copy ip报头信息
+				if (offset == 0)		//只有第一个片段包含所有选项
 					ip_options_fragment(frag);
 				offset += skb->len - hlen;
 				iph->frag_off = htons(offset>>3);

@@ -175,9 +175,9 @@ struct iphdr {
 #error	"Please fix <asm/byteorder.h>"
 #endif
 	__u8	tos;
-	__u16	tot_len;
+	__u16	tot_len;		//total length
 	__u16	id;
-	__u16	frag_off;		//fragment offset
+	__u16	frag_off;		//|resv(1bit)|MF(1bit)|DF(1bit)|fragment offset(13bit)|
 	__u8	ttl;
 	__u8	protocol;
 	__u16	check;
