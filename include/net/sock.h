@@ -251,7 +251,7 @@ struct sock {
 	void			*sk_user_data;
 	struct module		*sk_owner;
 	struct page		*sk_sndmsg_page;		//物理页面地址
-	__u32			sk_sndmsg_off;
+	__u32			sk_sndmsg_off;			//发送数据完成统计
 	struct sk_buff		*sk_send_head;
 	int			sk_write_pending;
 	void			*sk_security;

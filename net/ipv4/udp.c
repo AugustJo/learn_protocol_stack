@@ -491,7 +491,7 @@ int udp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	u16 dport;
 	u8  tos;
 	int err;
-	int corkreq = up->corkflag || msg->msg_flags&MSG_MORE;
+	int corkreq = up->corkflag || msg->msg_flags&MSG_MORE;		//指出是否应该使用缓冲机制
 
 	if (len > 0xFFFF)
 		return -EMSGSIZE;
@@ -644,9 +644,9 @@ do_append_data:
 			sizeof(struct udphdr), &ipc, rt, 
 			corkreq ? msg->msg_flags|MSG_MORE : msg->msg_flags);
 	if (err)
-		udp_flush_pending_frames(sk);
+		udp_flush_pending_frames(sk);		//如果ip_append_data失败, 刷新队列
 	else if (!corkreq)
-		err = udp_push_pending_frames(sk, up);
+		err = udp_push_pending_frames(sk, up);		//强制数据进行传输
 	release_sock(sk);
 
 out:

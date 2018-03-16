@@ -47,11 +47,11 @@ struct inet_skb_parm
 #define IPSKB_XFRM_TUNNEL_SIZE	8
 };
 
-struct ipcm_cookie
+struct ipcm_cookie			//传输封包所需的信息
 {
 	u32			addr;			//目的IP
 	int			oif;			//出口设备
-	struct ip_options	*opt;
+	struct ip_options	*opt;	//ip选项
 };
 
 #define IPCB(skb) ((struct inet_skb_parm*)((skb)->cb))

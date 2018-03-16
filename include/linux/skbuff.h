@@ -231,13 +231,13 @@ struct sk_buff {
 	 * want to keep them across layers you have to do a skb_clone()
 	 * first. This is owned by whoever has the skb queued ATM.
 	 */
-	char			cb[40];		//control buffer 私有信息存储空间
+	char			cb[40];		//control buffer 存储私有字段
 
-	unsigned int		len,		//缓冲区中数据块的大小(包括协议报头)
+	unsigned int		len,		//【总长度】缓冲区数据块大小(包括主缓冲区和片段)
 				data_len,			//片段中数据大小
 				mac_len,
 				csum;		//L4 载荷校验和
-	unsigned char		local_df,
+	unsigned char		local_df,		//允许本地分片
 				cloned,
 				pkt_type,
 				ip_summed;

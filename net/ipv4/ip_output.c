@@ -424,7 +424,7 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
  *	single device frame, and queue such a frame for sending.
  */
 
-int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
+int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))		//output 用于传输片段的函数
 {
 	struct iphdr *iph;
 	int raw = 0;
@@ -445,7 +445,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 
 	iph = skb->nh.iph;
 
-	if (unlikely((iph->frag_off & htons(IP_DF)) && !skb->local_df)) {
+	if (unlikely((iph->frag_off & htons(IP_DF)) && !skb->local_df)) {		//如果来源地设置了DF, 同时本地不允许分片, 发送icmp报文给源主机
 		icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
 			  htonl(dst_pmtu(&rt->u.dst)));
 		kfree_skb(skb);
@@ -706,7 +706,7 @@ csum_page(struct page *page, int offset, int copy)
  *	LATER: length must be adjusted by pad at tail, when it is required.
  */
 int ip_append_data(struct sock *sk,							//将数据放在大小合适的缓冲区中，后续函数借此构成一些片段，提高效率
-		   int getfrag(void *from, char *to, int offset, int len,
+		   int getfrag(void *from, char *to, int offset, int len,			//getfrag 从用户态拷贝到内核态
 			       int odd, struct sk_buff *skb),
 		   void *from, 		//from: 指向L4层载荷的指针
 		   int length, 		//length: 要传输的数据量(L4报头和载荷长度    )也表示剩余数据量
@@ -719,14 +719,14 @@ int ip_append_data(struct sock *sk,							//将数据放在大小合适的缓冲
 	struct sk_buff *skb;
 
 	struct ip_options *opt = NULL;
-	int hh_len;
+	int hh_len;		//L2报头长度
 	int exthdrlen;	//exthdrlen: 外部报头len	(IPsec报头)
 	int mtu;
 	int copy;		//可用空间量
 	int err;
 	int offset = 0;
 	unsigned int maxfraglen, 		//maxfraglen IP片段最大尺寸
-		fragheaderlen;		//fragheaderlen 是报头尺寸 
+		fragheaderlen;		//IP报头尺寸(选项)
 	int csummode = CHECKSUM_NONE;
 
 	if (flags&MSG_PROBE)
@@ -747,7 +747,7 @@ int ip_append_data(struct sock *sk,							//将数据放在大小合适的缓冲
 			inet->cork.flags |= IPCORK_OPT;		//如果有opt则标记
 			inet->cork.addr = ipc->addr;		//目的IP
 		}
-		dst_hold(&rt->u.dst);
+		dst_hold(&rt->u.dst);		//dst 引用+1
 		inet->cork.fragsize = mtu = dst_pmtu(&rt->u.dst);		//路径mtu
 		inet->cork.rt = rt;		//用于传输此IP数据段的路由表缓存项
 		inet->cork.length = 0;
@@ -807,7 +807,7 @@ int ip_append_data(struct sock *sk,							//将数据放在大小合适的缓冲
 			char *data;
 			unsigned int datalen;		//要拷贝到缓冲区的数据量
 			unsigned int fraglen;		//片段能容纳最大数据量
-			unsigned int fraggap;		//缓冲区间隔(8字节对齐)
+			unsigned int fraggap;		//前一个缓冲区尾部(8字节对齐)
 			unsigned int alloclen;
 			struct sk_buff *skb_prev;
 alloc_new_skb:
@@ -848,7 +848,7 @@ alloc_new_skb:
 				skb = NULL;
 				if (atomic_read(&sk->sk_wmem_alloc) <=
 				    2 * sk->sk_sndbuf)
-					skb = sock_wmalloc(sk, 
+					skb = sock_wmalloc(sk, 			//从缓冲区中取出skb
 							   alloclen + hh_len + 15, 1,
 							   sk->sk_allocation);
 				if (unlikely(skb == NULL))
@@ -862,7 +862,7 @@ alloc_new_skb:
 			 */
 			skb->ip_summed = csummode;		//指出出口设备是否提供L4硬件校验功能
 			skb->csum = 0;
-			skb_reserve(skb, hh_len);
+			skb_reserve(skb, hh_len);		//为L2报头预留空间
 
 			/*
 			 *	Find where to start putting bytes.
@@ -885,7 +885,7 @@ alloc_new_skb:
 			copy = datalen - transhdrlen - fraggap;		//拷贝报头
 			if (copy > 0 			//copy > 0 表示最后一个skb有可用空间
 				&& getfrag(from, data + transhdrlen, offset, copy, fraggap, skb) < 0) {	//从from 拷贝 copy个字节去offset + data + transhdrlen
-				err = -EFAULT;
+				err = -EFAULT;															
 				kfree_skb(skb);
 				goto error;
 			}
@@ -931,9 +931,9 @@ alloc_new_skb:
 						err = -EMSGSIZE;
 						goto error;
 					}
-					get_page(page);
-	 				skb_fill_page_desc(skb, i, page, sk->sk_sndmsg_off, 0);
-					frag = &skb_shinfo(skb)->frags[i];
+					get_page(page);		//根据page取回数据
+	 				skb_fill_page_desc(skb, i, page, sk->sk_sndmsg_off, 0);		//初始化skb中的页片段
+					frag = &skb_shinfo(skb)->frags[i];		//将frags[i]取出
 				}
 			} else if (i < MAX_SKB_FRAGS) {
 				if (copy > PAGE_SIZE)
@@ -958,6 +958,7 @@ alloc_new_skb:
 				err = -EFAULT;
 				goto error;
 			}
+			//更新各统计值
 			sk->sk_sndmsg_off += copy;
 			frag->size += copy;
 			skb->len += copy;
@@ -1113,7 +1114,7 @@ error:
  *	Combined all pending IP fragments on the socket as one IP datagram
  *	and push them out.
  */
-int ip_push_pending_frames(struct sock *sk)
+int ip_push_pending_frames(struct sock *sk)		//将sw_write_queue里的片段打包传输
 {
 	struct sk_buff *skb, *tmp_skb;
 	struct sk_buff **tail_skb;
@@ -1125,16 +1126,16 @@ int ip_push_pending_frames(struct sock *sk)
 	__u8 ttl;
 	int err = 0;
 
-	if ((skb = __skb_dequeue(&sk->sk_write_queue)) == NULL)
+	if ((skb = __skb_dequeue(&sk->sk_write_queue)) == NULL)			//取出第一个缓冲区
 		goto out;
 	tail_skb = &(skb_shinfo(skb)->frag_list);
 
 	/* move skb->data to ip header from ext header */
 	if (skb->data < skb->nh.raw)
 		__skb_pull(skb, skb->nh.raw - skb->data);
-	while ((tmp_skb = __skb_dequeue(&sk->sk_write_queue)) != NULL) {
-		__skb_pull(tmp_skb, skb->h.raw - skb->nh.raw);
-		*tail_skb = tmp_skb;
+	while ((tmp_skb = __skb_dequeue(&sk->sk_write_queue)) != NULL) {		//将第一个缓冲区后的所有缓冲区都放入frag_list链表
+		__skb_pull(tmp_skb, skb->h.raw - skb->nh.raw);		//剥掉tmp_skb L3报头
+		*tail_skb = tmp_skb;				//将其串到 frag_list 尾部
 		tail_skb = &(tmp_skb->next);
 		skb->len += tmp_skb->len;
 		skb->data_len += tmp_skb->len;
@@ -1148,7 +1149,7 @@ int ip_push_pending_frames(struct sock *sk)
 	 * to fragment the frame generated here. No matter, what transforms
 	 * how transforms change size of the packet, it will come out.
 	 */
-	if (inet->pmtudisc != IP_PMTUDISC_DO)
+	if (inet->pmtudisc != IP_PMTUDISC_DO)		//IP_PMTUDISC_DO 不分段标识符
 		skb->local_df = 1;
 
 	/* DF bit is set when we want to see DF on outgoing frames.
@@ -1156,12 +1157,12 @@ int ip_push_pending_frames(struct sock *sk)
 	 * locally. */
 	if (inet->pmtudisc == IP_PMTUDISC_DO ||
 	    (!skb_shinfo(skb)->frag_list && ip_dont_fragment(sk, &rt->u.dst)))
-		df = htons(IP_DF);
+		df = htons(IP_DF);			//dont fragment
 
 	if (inet->cork.flags & IPCORK_OPT)
 		opt = inet->cork.opt;
 
-	if (rt->rt_type == RTN_MULTICAST)
+	if (rt->rt_type == RTN_MULTICAST)		//指派给单播和多播的默认TTL分别为 64 和 1
 		ttl = inet->mc_ttl;
 	else
 		ttl = ip_select_ttl(inet, &rt->u.dst);
@@ -1171,7 +1172,7 @@ int ip_push_pending_frames(struct sock *sk)
 	iph->ihl = 5;
 	if (opt) {
 		iph->ihl += opt->optlen>>2;
-		ip_options_build(skb, opt, inet->cork.addr, rt, 0);
+		ip_options_build(skb, opt, inet->cork.addr, rt, 0);		//从 rt 中拷贝ip选项到 skb
 	}
 	iph->tos = inet->tos;
 	iph->tot_len = htons(skb->len);
@@ -1185,7 +1186,7 @@ int ip_push_pending_frames(struct sock *sk)
 	iph->protocol = sk->sk_protocol;
 	iph->saddr = rt->rt_src;
 	iph->daddr = rt->rt_dst;
-	ip_send_check(iph);
+	ip_send_check(iph);		//计算ip报头校验和
 
 	skb->priority = sk->sk_priority;
 	skb->dst = dst_clone(&rt->u.dst);
