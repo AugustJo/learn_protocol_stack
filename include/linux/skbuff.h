@@ -143,7 +143,7 @@ struct skb_shared_info {
 	unsigned short	tso_size;
 	unsigned short	tso_segs;
 	struct sk_buff	*frag_list;
-	skb_frag_t	frags[MAX_SKB_FRAGS];
+	skb_frag_t	frags[MAX_SKB_FRAGS];		//一组由页面碎片组成的数据缓冲区
 };
 
 /** 
@@ -657,7 +657,7 @@ static inline int skb_is_nonlinear(const struct sk_buff *skb)
 	return skb->data_len;
 }
 
-static inline unsigned int skb_headlen(const struct sk_buff *skb)
+static inline unsigned int skb_headlen(const struct sk_buff *skb)		//主缓冲区长度
 {
 	return skb->len - skb->data_len;
 }

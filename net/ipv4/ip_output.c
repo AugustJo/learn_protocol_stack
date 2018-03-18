@@ -431,7 +431,8 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))		//output �
 	int ptr;
 	struct net_device *dev;
 	struct sk_buff *skb2;
-	unsigned int mtu, hlen, left, len, ll_rs;
+	unsigned int mtu, hlen, left, len,
+		ll_rs;		//link layer reserved space
 	int offset;
 	int not_last_frag;
 	struct rtable *rt = (struct rtable*)skb->dst;
@@ -478,7 +479,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))		//output �
 
 		for (frag = skb_shinfo(skb)->frag_list; frag; frag = frag->next) {
 			/* Correct geometry. */
-			if (frag->len > mtu ||
+			if (frag->len > mtu ||		//注意此处是frag->len, 分片的总长度
 			    ((frag->len & 7) && frag->next) ||
 			    skb_headroom(frag) < hlen)
 			    goto slow_path;
@@ -489,7 +490,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))		//output �
 		}
 
 		/* Everything is OK. Generate! */
-
+		//在外面初始化第一个报文
 		err = 0;
 		offset = 0;
 		frag = skb_shinfo(skb)->frag_list;
@@ -503,11 +504,12 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))		//output �
 		for (;;) {
 			/* Prepare header of the next frame,
 			 * before previous one went down. */
-			if (frag) {		//每个frag成为一个ip分片
+			if (frag) {		//每个frag为一个ip分片
 				frag->h.raw = frag->data;
 				frag->nh.raw = __skb_push(frag, hlen);
 				memcpy(frag->nh.raw, iph, hlen);		//将ip报头拷到分段中
-				iph = frag->nh.iph;
+				/* 开始为下一个报文做准备 */
+				iph = frag->nh.iph;				
 				iph->tot_len = htons(frag->len);		
 				ip_copy_metadata(frag, skb);		//copy ip报头信息
 				if (offset == 0)		//只有第一个片段包含所有选项
@@ -520,11 +522,11 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))		//output �
 				ip_send_check(iph);
 			}
 
-			err = output(skb);
+			err = output(skb);		//用指定的output函数发送每个skb
 
 			if (err || !frag)
 				break;
-
+			/* 遍历frag_list里的每个frag */
 			skb = frag;
 			frag = skb->next;
 			skb->next = NULL;
@@ -544,7 +546,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))		//output �
 		return err;
 	}
 
-slow_path:
+slow_path:			//skb没有按mtu分配好
 	left = skb->len - hlen;		/* Space per frame */
 	ptr = raw + hlen;		/* Where to start from */
 
@@ -567,7 +569,7 @@ slow_path:
 	 *	Keep copying data until we run out.
 	 */
 
-	while(left > 0)	{
+	while(left > 0)	{		//剩余数据量
 		len = left;
 		/* IF: it doesn't fit, use 'mtu' - the data space left */
 		if (len > mtu)
@@ -591,8 +593,8 @@ slow_path:
 		 *	Set up data on packet
 		 */
 
-		ip_copy_metadata(skb2, skb);
-		skb_reserve(skb2, ll_rs);
+		ip_copy_metadata(skb2, skb);		//将skb报头信息copy到skb2
+		skb_reserve(skb2, ll_rs);		//在头部预留l2报头空间
 		skb_put(skb2, len + hlen);
 		skb2->nh.raw = skb2->data;
 		skb2->h.raw = skb2->data + hlen;
@@ -609,12 +611,12 @@ slow_path:
 		 *	Copy the packet header into the new buffer.
 		 */
 
-		memcpy(skb2->nh.raw, skb->data, hlen);
+		memcpy(skb2->nh.raw, skb->data, hlen);		//copy L3报头信息
 
 		/*
 		 *	Copy a block of the IP datagram.
 		 */
-		if (skb_copy_bits(skb, ptr, skb2->h.raw, len))
+		if (skb_copy_bits(skb, ptr, skb2->h.raw, len))		//data_len == 0 时,直接memcpy即可
 			BUG();
 		left -= len;
 
