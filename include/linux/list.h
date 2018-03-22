@@ -317,7 +317,7 @@ static inline void list_splice_init(struct list_head *list,
  * @type:	the type of the struct this is embedded in.
  * @member:	the name of the list_struct within the struct.
  */
-#define list_entry(ptr, type, member) \
+#define list_entry(ptr, type, member) \				//get the struct for this entry
 	container_of(ptr, type, member)
 
 /**

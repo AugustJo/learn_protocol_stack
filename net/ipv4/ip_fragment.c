@@ -199,7 +199,7 @@ static __inline__ struct ipq *frag_alloc_queue(void)
 /* Destruction primitives. */
 
 /* Complete destruction of ipq. */
-static void ip_frag_destroy(struct ipq *qp, int *work)
+static void ip_frag_destroy(struct ipq *qp, int *work)			//释放一个缓存队列中的所有skb
 {
 	struct sk_buff *fp;
 
@@ -219,7 +219,7 @@ static void ip_frag_destroy(struct ipq *qp, int *work)
 	frag_free_queue(qp, work);
 }
 
-static __inline__ void ipq_put(struct ipq *ipq, int *work)
+static __inline__ void ipq_put(struct ipq *ipq, int *work)			//如果没有引用, 就释放ipq
 {
 	if (atomic_dec_and_test(&ipq->refcnt))
 		ip_frag_destroy(ipq, work);
@@ -249,24 +249,24 @@ static void __ip_evictor(int threshold)
 	struct list_head *tmp;
 	int work;
 
-	work = atomic_read(&ip_frag_mem) - threshold;
+	work = atomic_read(&ip_frag_mem) - threshold;		//要释放的空间
 	if (work <= 0)
 		return;
 
 	while (work > 0) {
 		read_lock(&ipfrag_lock);
-		if (list_empty(&ipq_lru_list)) {
+		if (list_empty(&ipq_lru_list)) {		//如果没有东西释放, 返回
 			read_unlock(&ipfrag_lock);
 			return;
 		}
 		tmp = ipq_lru_list.next;		//last recently used链表，依次删除
-		qp = list_entry(tmp, struct ipq, lru_list);
+		qp = list_entry(tmp, struct ipq, lru_list);		//找到 tmp 对应的 ipq 结构体
 		atomic_inc(&qp->refcnt);
 		read_unlock(&ipfrag_lock);
 
 		spin_lock(&qp->lock);
 		if (!(qp->last_in&COMPLETE))
-			ipq_kill(qp);
+			ipq_kill(qp);		//kill 掉 qp 内存
 		spin_unlock(&qp->lock);
 
 		ipq_put(qp, &work);
@@ -674,7 +674,7 @@ struct sk_buff *ip_defrag(struct sk_buff *skb)			//接收一个片段作为输�
 			ret = ip_frag_reasm(qp, dev);
 
 		spin_unlock(&qp->lock);
-		ipq_put(qp, NULL);
+		ipq_put(qp, NULL);		//释放qp里缓存的所有分片
 		return ret;
 	}
 
