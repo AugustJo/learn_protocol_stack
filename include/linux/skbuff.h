@@ -274,7 +274,7 @@ struct sk_buff {
 
 
 	/* These elements must be at the end, see alloc_skb() for details.  */
-	unsigned int		truesize;
+	unsigned int		truesize;		//缓冲区的总大小
 	atomic_t		users;
 	unsigned char		*head,
 				*data,
@@ -885,7 +885,7 @@ static inline int __pskb_trim(struct sk_buff *skb, unsigned int len)
 	}
 	return ___pskb_trim(skb, len, 1);
 }
-
+/* 从tail去除掉len长度的数据 */
 static inline int pskb_trim(struct sk_buff *skb, unsigned int len)
 {
 	return (len < skb->len) ? __pskb_trim(skb, len) : 0;

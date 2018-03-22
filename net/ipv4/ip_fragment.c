@@ -70,7 +70,7 @@ struct ipfrag_skb_cb
 #define FRAG_CB(skb)	((struct ipfrag_skb_cb*)((skb)->cb))
 
 /* Describe an entry in the "incomplete datagrams" queue. */
-struct ipq {
+struct ipq {		//ip queue 存储片段的链表
 	struct ipq	*next;		/* linked list pointers			*/
 	struct list_head lru_list;	/* lru list member 			*/
 	u32		saddr;
@@ -84,7 +84,7 @@ struct ipq {
 
 	struct sk_buff	*fragments;	/* linked list of received fragments	*/
 	int		len;		/* total length of original datagram	*/
-	int		meat;
+	int		meat;		//已经接收到的数据
 	spinlock_t	lock;
 	atomic_t	refcnt;
 	struct timer_list timer;	/* when will this queue expire?		*/
@@ -259,7 +259,7 @@ static void __ip_evictor(int threshold)
 			read_unlock(&ipfrag_lock);
 			return;
 		}
-		tmp = ipq_lru_list.next;
+		tmp = ipq_lru_list.next;		//last recently used链表，依次删除
 		qp = list_entry(tmp, struct ipq, lru_list);
 		atomic_inc(&qp->refcnt);
 		read_unlock(&ipfrag_lock);
@@ -274,7 +274,7 @@ static void __ip_evictor(int threshold)
 	}
 }
 
-static inline void ip_evictor(void)
+static inline void ip_evictor(void)				//逐一删除不完整的封包ipq, 直到片段内存降到sysctl_ipfrag_low_thresh以下
 {
 	__ip_evictor(sysctl_ipfrag_low_thresh);
 }
@@ -386,7 +386,8 @@ out_nomem:
 /* Find the correct entry in the "incomplete datagrams" queue for
  * this IP datagram, and create new one, if nothing is found.
  */
-static inline struct ipq *ip_find(struct iphdr *iph)
+ /* 找到和当前片段相关的封包链表 */
+static inline struct ipq *ip_find(struct iphdr *iph)		//根据 id sip dip L4协议 判断
 {
 	__u16 id = iph->id;
 	__u32 saddr = iph->saddr;
@@ -408,17 +409,17 @@ static inline struct ipq *ip_find(struct iphdr *iph)
 	}
 	read_unlock(&ipfrag_lock);
 
-	return ip_frag_create(hash, iph);
+	return ip_frag_create(hash, iph);		//如果不存在, 创建一个新封包链表
 }
 
-/* Add new segment to existing queue. */
-static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
+
+static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)    /* 将指定片段插入IP封包的片段链表 */
 {
 	struct sk_buff *prev, *next;
 	int flags, offset;
 	int ihl, end;
 
-	if (qp->last_in & COMPLETE)
+	if (qp->last_in & COMPLETE)		//防止ip封包已接收完成后被错误的调用
 		goto err;
 
  	offset = ntohs(skb->nh.iph->frag_off);
@@ -428,10 +429,10 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
  	ihl = skb->nh.iph->ihl * 4;
 
 	/* Determine the position of this fragment. */
- 	end = offset + skb->len - ihl;
+ 	end = offset + skb->len - ihl;		//skb->len - ihl 为有效载荷大小
 
 	/* Is this the final fragment? */
-	if ((flags & IP_MF) == 0) {
+	if ((flags & IP_MF) == 0) {			//最后一个片段
 		/* If we already have some bits beyond end
 		 * or have different end, the segment is corrrupted.
 		 */
@@ -439,8 +440,8 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		    ((qp->last_in & LAST_IN) && end != qp->len))
 			goto err;
 		qp->last_in |= LAST_IN;
-		qp->len = end;
-	} else {
+		qp->len = end;		//取得封包总长度
+	} else {							//非最后一个片段
 		if (end&7) {
 			end &= ~7;
 			if (skb->ip_summed != CHECKSUM_UNNECESSARY)
@@ -466,6 +467,7 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	 * this fragment, right?
 	 */
 	prev = NULL;
+	/* 找到插在哪个元素之前 */
 	for(next = qp->fragments; next != NULL; next = next->next) {
 		if (FRAG_CB(next)->offset >= offset)
 			break;	/* bingo! */
@@ -476,35 +478,37 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	 * preceding fragment, and, if needed, align things so that
 	 * any overlaps are eliminated.
 	 */
+	/* 处理前面重叠 */
 	if (prev) {
-		int i = (FRAG_CB(prev)->offset + prev->len) - offset;
+		int i = (FRAG_CB(prev)->offset + prev->len) - offset;		//前一个报文offset + len 减去当前报文 offset, i 表示重叠长度
 
 		if (i > 0) {
 			offset += i;
 			if (end <= offset)
 				goto err;
-			if (!pskb_pull(skb, i))
+			if (!pskb_pull(skb, i))				//当前 skb 从头吐出 i 个字节
 				goto err;
 			if (skb->ip_summed != CHECKSUM_UNNECESSARY)
-				skb->ip_summed = CHECKSUM_NONE;
+				skb->ip_summed = CHECKSUM_NONE;		//L4校验和失效
 		}
 	}
-
+	/* 处理后面重叠 */
 	while (next && FRAG_CB(next)->offset < end) {
-		int i = end - FRAG_CB(next)->offset; /* overlap is 'i' bytes */
+		int i = end - FRAG_CB(next)->offset; 		//i 表示重叠长度, end 为当前 skb 数据结束的位置
 
-		if (i < next->len) {
+		if (i < next->len) {		//如果 next 没有被完全覆盖
 			/* Eat head of the next overlapped fragment
 			 * and leave the loop. The next ones cannot overlap.
 			 */
-			if (!pskb_pull(next, i))
+			if (!pskb_pull(next, i))		//吐出 i 个字节
 				goto err;
 			FRAG_CB(next)->offset += i;
-			qp->meat -= i;
+			qp->meat -= i;		//已经接收到的数据要减去 i
 			if (next->ip_summed != CHECKSUM_UNNECESSARY)
-				next->ip_summed = CHECKSUM_NONE;
+				next->ip_summed = CHECKSUM_NONE;		//L4校验和失效
 			break;
-		} else {
+		} 
+		else {		//如果被覆盖, 删除这个片段
 			struct sk_buff *free_it = next;
 
 			/* Old fragmnet is completely overridden with
@@ -515,7 +519,7 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 			if (prev)
 				prev->next = next;
 			else
-				qp->fragments = next;
+				qp->fragments = next;	//如果被删除的是链表的头部, 更新头部指针
 
 			qp->meat -= free_it->len;
 			frag_kfree_skb(free_it, NULL);
@@ -534,14 +538,14 @@ static void ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
  	if (skb->dev)
  		qp->iif = skb->dev->ifindex;
 	skb->dev = NULL;
-	qp->stamp = skb->stamp;
-	qp->meat += skb->len;
-	atomic_add(skb->truesize, &ip_frag_mem);
+	qp->stamp = skb->stamp;		//更新时间戳
+	qp->meat += skb->len;		//更新片段链表长度
+	atomic_add(skb->truesize, &ip_frag_mem);		//将skb缓冲区总大小加到 ip_frag_mem
 	if (offset == 0)
 		qp->last_in |= FIRST_IN;
 
 	write_lock(&ipfrag_lock);
-	list_move_tail(&qp->lru_list, &ipq_lru_list);
+	list_move_tail(&qp->lru_list, &ipq_lru_list);		//将qp移动到 LRU(last recently used) 链表尾端
 	write_unlock(&ipfrag_lock);
 
 	return;
@@ -551,7 +555,7 @@ err:
 }
 
 
-/* Build a new IP datagram from all its fragments. */
+/* 所有片段都被接收,        用这些片段重构ip封包 */
 
 static struct sk_buff *ip_frag_reasm(struct ipq *qp, struct net_device *dev)
 {
@@ -642,7 +646,7 @@ out_fail:
 }
 
 /* Process an incoming IP datagram fragment. */
-struct sk_buff *ip_defrag(struct sk_buff *skb)
+struct sk_buff *ip_defrag(struct sk_buff *skb)			//接收一个片段作为输入参数, 试着将该片段添加到正确的封包
 {
 	struct iphdr *iph = skb->nh.iph;
 	struct ipq *qp;
@@ -652,7 +656,7 @@ struct sk_buff *ip_defrag(struct sk_buff *skb)
 
 	/* Start by cleaning up the memory. */
 	if (atomic_read(&ip_frag_mem) > sysctl_ipfrag_high_thresh)
-		ip_evictor();
+		ip_evictor();			//触发垃圾收集
 
 	dev = skb->dev;
 
@@ -662,10 +666,11 @@ struct sk_buff *ip_defrag(struct sk_buff *skb)
 
 		spin_lock(&qp->lock);
 
-		ip_frag_queue(qp, skb);
+		ip_frag_queue(qp, skb);		//将 skb 插入 qp
 
-		if (qp->last_in == (FIRST_IN|LAST_IN) &&
-		    qp->meat == qp->len)
+		if (qp->last_in == (FIRST_IN|LAST_IN) &&		/* 若第一个和最后一个片段都接收
+		    qp->meat == qp->len)						 * 且片段总尺寸等于原封包尺寸
+		    											 * 将片段连起来获得原有封包，并传给高层 */
 			ret = ip_frag_reasm(qp, dev);
 
 		spin_unlock(&qp->lock);
