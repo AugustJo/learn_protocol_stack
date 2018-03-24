@@ -1051,15 +1051,15 @@ static int __init inet_init(void)
 	/*
 	 *	Add all the base protocols.
 	 */
-
-	if (inet_add_protocol(&icmp_protocol, IPPROTO_ICMP) < 0)
+	/* 对于一些常用协议, 直接注册到内核中, 其它协议需要动态注册 */
+	if (inet_add_protocol(&icmp_protocol, IPPROTO_ICMP) < 0)		//将icmp协议注册到内核中
 		printk(KERN_CRIT "inet_init: Cannot add ICMP protocol\n");
-	if (inet_add_protocol(&udp_protocol, IPPROTO_UDP) < 0)
+	if (inet_add_protocol(&udp_protocol, IPPROTO_UDP) < 0)			//将udp协议注册到内核中
 		printk(KERN_CRIT "inet_init: Cannot add UDP protocol\n");
-	if (inet_add_protocol(&tcp_protocol, IPPROTO_TCP) < 0)
+	if (inet_add_protocol(&tcp_protocol, IPPROTO_TCP) < 0)			//将tcp协议注册到内核中
 		printk(KERN_CRIT "inet_init: Cannot add TCP protocol\n");
 #ifdef CONFIG_IP_MULTICAST
-	if (inet_add_protocol(&igmp_protocol, IPPROTO_IGMP) < 0)
+	if (inet_add_protocol(&igmp_protocol, IPPROTO_IGMP) < 0)		//将igmp协议注册到内核中
 		printk(KERN_CRIT "inet_init: Cannot add IGMP protocol\n");
 #endif
 

@@ -196,7 +196,7 @@ int ip_call_ra_chain(struct sk_buff *skb)
 	return 0;
 }
 
-static inline int ip_local_deliver_finish(struct sk_buff *skb)
+static inline int ip_local_deliver_finish(struct sk_buff *skb)		//把封包传递给L4处理函数
 {
 	int ihl = skb->nh.iph->ihl*4;
 
@@ -204,7 +204,7 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 	nf_debug_ip_local_deliver(skb);
 #endif /*CONFIG_NETFILTER_DEBUG*/
 
-	__skb_pull(skb, ihl);
+	__skb_pull(skb, ihl);		//移除L3报头
 
 	/* Free reference early: we don't need it any more, and it may
            hold ip_conntrack module loaded indefinitely. */
@@ -216,7 +216,7 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 	rcu_read_lock();
 	{
 		/* Note: See raw.c and net/raw.h, RAWV4_HTABLE_SIZE==MAX_INET_PROTOS */
-		int protocol = skb->nh.iph->protocol;
+		int protocol = skb->nh.iph->protocol;		//从iph中取出L4层协议!
 		int hash;
 		struct sock *raw_sk;
 		struct net_protocol *ipprot;
@@ -231,16 +231,16 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 		if (raw_sk)
 			raw_v4_input(skb, skb->nh.iph, hash);
 
-		if ((ipprot = rcu_dereference(inet_protos[hash])) != NULL) {
+		if ((ipprot = rcu_dereference(inet_protos[hash])) != NULL) {		//四层协议类型
 			int ret;
 
 			if (!ipprot->no_policy &&
-			    !xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
+			    !xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {	//检查IPsec安全策略
 				kfree_skb(skb);
 				goto out;
 			}
-			ret = ipprot->handler(skb);
-			if (ret < 0) {
+			ret = ipprot->handler(skb);		//调用报头指定的handler函数
+			if (ret < 0) {			//失败时走到else分支发送icmp报文
 				protocol = -ret;
 				goto resubmit;
 			}

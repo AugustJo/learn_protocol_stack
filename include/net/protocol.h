@@ -34,10 +34,10 @@
 
 
 /* This is used to register protocols. */
-struct net_protocol {
-	int			(*handler)(struct sk_buff *skb);
-	void			(*err_handler)(struct sk_buff *skb, u32 info);
-	int			no_policy;
+struct net_protocol {			//定义L4协议
+	int			(*handler)(struct sk_buff *skb);		//协议注册的封包处理函数
+	void			(*err_handler)(struct sk_buff *skb, u32 info);		//被icmp协议处理函数调用
+	int			no_policy;		//使协议免于IPsec检查
 };
 
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)

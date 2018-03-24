@@ -55,7 +55,7 @@ static spinlock_t inet_proto_lock = SPIN_LOCK_UNLOCKED;
  *	Add a protocol handler to the hash tables
  */
 
-int inet_add_protocol(struct net_protocol *prot, unsigned char protocol)
+int inet_add_protocol(struct net_protocol *prot, unsigned char protocol)		//系统初始化时注册协议
 {
 	int hash, ret;
 
