@@ -11,11 +11,11 @@
 #define _LINUX_NOTIFIER_H
 #include <linux/errno.h>
 
-struct notifier_block
+struct notifier_block				//通知链元素类型
 {
-	int (*notifier_call)(struct notifier_block *self, unsigned long, void *);
+	int (*notifier_call)(struct notifier_block *self, unsigned long, void *);		//要执行的函数
 	struct notifier_block *next;
-	int priority;
+	int priority;			//默认为0
 };
 
 

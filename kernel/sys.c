@@ -100,7 +100,7 @@ rwlock_t notifier_lock = RW_LOCK_UNLOCKED;
  *	Currently always returns zero.
  */
  
-int notifier_chain_register(struct notifier_block **list, struct notifier_block *n)
+int notifier_chain_register(struct notifier_block **list, struct notifier_block *n)			//注册通知链
 {
 	write_lock(&notifier_lock);
 	while(*list)

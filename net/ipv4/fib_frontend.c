@@ -593,17 +593,17 @@ struct notifier_block fib_netdev_notifier = {
 	.notifier_call =fib_netdev_event,
 };
 
-void __init ip_fib_init(void)
+void __init ip_fib_init(void)			//用netdev_chain inetaddr_chain两个通知链注册两个处理函数
 {
 #ifndef CONFIG_IP_MULTIPLE_TABLES
 	ip_fib_local_table = fib_hash_init(RT_TABLE_LOCAL);
 	ip_fib_main_table  = fib_hash_init(RT_TABLE_MAIN);
 #else
-	fib_rules_init();
+	fib_rules_init();		//策略路由初始化
 #endif
 
-	register_netdevice_notifier(&fib_netdev_notifier);
-	register_inetaddr_notifier(&fib_inetaddr_notifier);
+	register_netdevice_notifier(&fib_netdev_notifier);		//将 fib_netdev_notifier 插到 netdev_chain
+	register_inetaddr_notifier(&fib_inetaddr_notifier);		//将 fib_inetaddr_notifier 插到 inetaddr_chain
 }
 
 EXPORT_SYMBOL(inet_addr_type);

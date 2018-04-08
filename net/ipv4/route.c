@@ -2766,8 +2766,8 @@ int __init ip_rt_init(void)
 	if (!rt_cache_stat)
 		return -ENOMEM;
 
-	devinet_init();
-	ip_fib_init();
+	devinet_init();		//为地址和路由命令注册处理函数, 并创建/proc/sys/net/conf和/proc/sys/net/conf/default目录
+	ip_fib_init();		//初始化默认路由表
 
 	init_timer(&rt_flush_timer);
 	rt_flush_timer.function = rt_run_flush;

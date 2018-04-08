@@ -82,7 +82,7 @@ struct in_device
 #define IN_DEV_ARP_ANNOUNCE(in_dev)	(max(ipv4_devconf.arp_announce, (in_dev)->cnf.arp_announce))
 #define IN_DEV_ARP_IGNORE(in_dev)	(max(ipv4_devconf.arp_ignore, (in_dev)->cnf.arp_ignore))
 
-struct in_ifaddr
+struct in_ifaddr			//设备上配置的每一个ip地址对应一个in_ifaddr实例
 {
 	struct in_ifaddr	*ifa_next;
 	struct in_device	*ifa_dev;

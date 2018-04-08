@@ -10,7 +10,7 @@ struct fib_alias {
 	struct fib_info		*fa_info;
 	u8			fa_tos;
 	u8			fa_type;
-	u8			fa_scope;
+	u8			fa_scope;		//路由scope
 	u8			fa_state;
 };
 

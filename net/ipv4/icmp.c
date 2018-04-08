@@ -98,7 +98,7 @@
  */
 
 struct icmp_bxm {
-	struct sk_buff *skb;
+	struct sk_buff *skb;		//对于icmp_send: 入口ip封包    		对于icmp_reply: 入口icmp消息请求
 	int offset;
 	int data_len;
 
@@ -1100,13 +1100,13 @@ void __init icmp_init(struct net_proto_family *ops)
 	struct inet_opt *inet;
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for (i = 0; i < NR_CPUS; i++) {		//每个CPU一个套接字
 		int err;
 
 		if (!cpu_possible(i))
 			continue;
 
-		err = sock_create_kern(PF_INET, SOCK_RAW, IPPROTO_ICMP,
+		err = sock_create_kern(PF_INET, SOCK_RAW, IPPROTO_ICMP,		//用于传输内核产生的ICMP消息
 				       &per_cpu(__icmp_socket, i));
 
 		if (err < 0)
@@ -1121,8 +1121,8 @@ void __init icmp_init(struct net_proto_family *ops)
 			(2 * ((64 * 1024) + sizeof(struct sk_buff)));
 
 		inet = inet_sk(per_cpu(__icmp_socket, i)->sk);
-		inet->uc_ttl = -1;
-		inet->pmtudisc = IP_PMTUDISC_DONT;
+		inet->uc_ttl = -1;			//告知内核使用默认ttl
+		inet->pmtudisc = IP_PMTUDISC_DONT;			//关掉套接字上PMTU发现功能
 
 		/* Unhash it so that IP input processing does not even
 		 * see it, we do not wish this socket to see incoming

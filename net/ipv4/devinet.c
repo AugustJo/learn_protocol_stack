@@ -902,7 +902,7 @@ int register_inetaddr_notifier(struct notifier_block *nb)
 
 int unregister_inetaddr_notifier(struct notifier_block *nb)
 {
-	return notifier_chain_unregister(&inetaddr_chain, nb);
+	return notifier_chain_unregister(&., nb);
 }
 
 /* Rename ifa_labels for a device name change. Make some effort to preserve existing
@@ -1482,7 +1482,7 @@ static void devinet_sysctl_unregister(struct ipv4_devconf *p)
 void __init devinet_init(void)
 {
 	register_gifconf(PF_INET, inet_gifconf);
-	register_netdevice_notifier(&ip_netdev_notifier);
+	register_netdevice_notifier(&ip_netdev_notifier);		//把 ip_netdev_notifier 插进 netdev_chain
 	rtnetlink_links[PF_INET] = inet_rtnetlink_table;
 #ifdef CONFIG_SYSCTL
 	devinet_sysctl.sysctl_header =
