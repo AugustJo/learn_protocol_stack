@@ -208,7 +208,7 @@ static inline struct hlist_head *dev_index_hash(int ifindex)
  *	Our notifier list
  */
 
-static struct notifier_block *netdev_chain;
+static struct notifier_block *netdev_chain;		//向内核注册通知链，获取网络设备状态的变化
 
 /*
  *	Device drivers call our routines to queue packets here. We empty the

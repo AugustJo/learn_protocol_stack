@@ -79,7 +79,7 @@ static struct ipv4_devconf ipv4_devconf_dflt = {
 
 static void rtmsg_ifa(int event, struct in_ifaddr *);
 
-static struct notifier_block *inetaddr_chain;
+static struct notifier_block *inetaddr_chain;		//向内核注册通知链，获取网络设备上ip的变化
 static void inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 			 int destroy);
 #ifdef CONFIG_SYSCTL
