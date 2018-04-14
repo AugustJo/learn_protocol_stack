@@ -1059,7 +1059,10 @@ fib_convert_rtentry(int cmd, struct nlmsghdr *nl, struct rtmsg *rtm,
    - device went down -> we must shutdown all nexthops going via it.
  */
 
-int fib_sync_down(u32 local, struct net_device *dev, int force)
+int fib_sync_down									//当dev或ip删除时更新路由表
+						(u32 local, 				//被删除的本地地址
+						struct net_device *dev, 	//被关闭的设备
+						int force)					//0:一个ip被删除      1:一个设备被关闭 2:一个设备被删除 
 {
 	int ret = 0;
 	int scope = RT_SCOPE_NOWHERE;
@@ -1090,7 +1093,7 @@ int fib_sync_down(u32 local, struct net_device *dev, int force)
 
 		hlist_for_each_entry(nh, node, head, nh_hash) {
 			struct fib_info *fi = nh->nh_parent;
-			int dead;
+		int dead;
 
 			BUG_ON(!fi->fib_nhs);
 			if (nh->nh_dev != dev || fi == prev_fi)
