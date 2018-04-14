@@ -1076,7 +1076,7 @@ int fib_sync_down									//当dev或ip删除时更新路由表
 		struct hlist_node *node;
 		struct fib_info *fi;
 
-		hlist_for_each_entry(fi, node, head, fib_lhash) {
+		hlist_for_each_entry(fi, node, head, fib_lhash) {		//将所有首选源地址为 local 的表项设置为 RTNH_F_DEAD
 			if (fi->fib_prefsrc == local) {
 				fi->fib_flags |= RTNH_F_DEAD;
 				ret++;
@@ -1084,7 +1084,7 @@ int fib_sync_down									//当dev或ip删除时更新路由表
 		}
 	}
 
-	if (dev) {
+	if (dev) {					//删除所有下一跳通过 dev 到达的路由表项
 		struct fib_info *prev_fi = NULL;
 		unsigned int hash = fib_devindex_hashfn(dev->ifindex);
 		struct hlist_head *head = &fib_info_devhash[hash];
@@ -1092,7 +1092,7 @@ int fib_sync_down									//当dev或ip删除时更新路由表
 		struct fib_nh *nh;
 
 		hlist_for_each_entry(nh, node, head, nh_hash) {
-			struct fib_info *fi = nh->nh_parent;
+			struct fib_info *fi = nh->nh_parent;		//fi->nh_dev 下一跳为 dev 
 		int dead;
 
 			BUG_ON(!fi->fib_nhs);
@@ -1100,10 +1100,10 @@ int fib_sync_down									//当dev或ip删除时更新路由表
 				continue;
 			prev_fi = fi;
 			dead = 0;
-			change_nexthops(fi) {
+			change_nexthops(fi) {		
 				if (nh->nh_flags&RTNH_F_DEAD)
 					dead++;
-				else if (nh->nh_dev == dev &&
+				else if (nh->nh_dev == dev &&			//对于下一跳为 dev 的表项设为 RTNH_F_DEAD
 					 nh->nh_scope != scope) {
 					nh->nh_flags |= RTNH_F_DEAD;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
@@ -1121,7 +1121,7 @@ int fib_sync_down									//当dev或ip删除时更新路由表
 				}
 #endif
 			} endfor_nexthops(fi)
-			if (dead == fi->fib_nhs) {
+			if (dead == fi->fib_nhs) {		//如果多路径路由的每一个下一跳都失效, 该路由项被标记为 dead
 				fi->fib_flags |= RTNH_F_DEAD;
 				ret++;
 			}

@@ -42,7 +42,7 @@ struct kern_rta {
 struct fib_info;
 
 struct fib_nh {
-	struct net_device	*nh_dev;
+	struct net_device	*nh_dev;		//下一跳 dev
 	struct hlist_node	nh_hash;
 	struct fib_info		*nh_parent;
 	unsigned		nh_flags;
@@ -62,15 +62,15 @@ struct fib_nh {
  * This structure contains data shared by many of routes.
  */
 
-struct fib_info {
-	struct hlist_node	fib_hash;
-	struct hlist_node	fib_lhash;
+struct fib_info {			//路由表信息
+	struct hlist_node	fib_hash;		//通过 fib_hash 被插到 fib_info_hash表中
+	struct hlist_node	fib_lhash;		//在路由表有首选源地址时, 通过 fib_lhash 插到 fib_info_laddrhash表中
 	int			fib_treeref;
 	atomic_t		fib_clntref;
 	int			fib_dead;
 	unsigned		fib_flags;
 	int			fib_protocol;
-	u32			fib_prefsrc;
+	u32			fib_prefsrc;		//首选源地址
 	u32			fib_priority;
 	u32			fib_metrics[RTAX_MAX];
 #define fib_mtu fib_metrics[RTAX_MTU-1]
@@ -81,7 +81,7 @@ struct fib_info {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	int			fib_power;
 #endif
-	struct fib_nh		fib_nh[0];
+	struct fib_nh		fib_nh[0];			//路由的下一跳信息
 #define fib_dev		fib_nh[0].nh_dev
 };
 
