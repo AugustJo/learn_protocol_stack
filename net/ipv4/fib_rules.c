@@ -356,7 +356,7 @@ void fib_select_default(const struct flowi *flp, struct fib_result *res)
 	}
 }
 
-static int fib_rules_event(struct notifier_block *this, unsigned long event, void *ptr)
+static int fib_rules_event(struct notifier_block *this, unsigned long event, void *ptr)				//使用策略路由时, 更新策略数据库
 {
 	struct net_device *dev = ptr;
 

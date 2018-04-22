@@ -408,7 +408,7 @@ static void fib_magic(int cmd, int type, u32 dst, int dst_len, struct in_ifaddr 
 		tb->tb_delete(tb, &req.rtm, &rta, &req.nlh, NULL);
 }
 
-static void fib_add_ifaddr(struct in_ifaddr *ifa)
+static void fib_add_ifaddr(struct in_ifaddr *ifa)			//本地设备添加了一个ip, 将路由表项添加到 local_table 中
 {
 	struct in_device *in_dev = ifa->ifa_dev;
 	struct net_device *dev = in_dev->dev;
@@ -417,7 +417,7 @@ static void fib_add_ifaddr(struct in_ifaddr *ifa)
 	u32 addr = ifa->ifa_local;
 	u32 prefix = ifa->ifa_address&mask;
 
-	if (ifa->ifa_flags&IFA_F_SECONDARY) {
+	if (ifa->ifa_flags&IFA_F_SECONDARY) {			//如果是辅助地址
 		prim = inet_ifa_byprefix(in_dev, prefix, mask);
 		if (prim == NULL) {
 			printk(KERN_DEBUG "fib_add_ifaddr: bug: prim == NULL\n");
@@ -425,18 +425,19 @@ static void fib_add_ifaddr(struct in_ifaddr *ifa)
 		}
 	}
 
-	fib_magic(RTM_NEWROUTE, RTN_LOCAL, addr, 32, prim);
-
-	if (!(dev->flags&IFF_UP))
-		return;
+	fib_magic(RTM_NEWROUTE, RTN_LOCAL, addr, 32, prim);		//在 local 表添加路由
+															//无论设备是何状态, 到ip地址的路由总被添加到 ip_fib_local_table
+	if (!(dev->flags&IFF_UP))		//检查设备是否启动
+		return;												//当设备未开启时, 到网络地址和广播地址的路由无效，不应被创建 
 
 	/* Add broadcast address, if it is explicitly assigned. */
-	if (ifa->ifa_broadcast && ifa->ifa_broadcast != 0xFFFFFFFF)
-		fib_magic(RTM_NEWROUTE, RTN_BROADCAST, ifa->ifa_broadcast, 32, prim);
+	if (ifa->ifa_broadcast &&					//是否配置广播地址 
+		ifa->ifa_broadcast != 0xFFFFFFFF)		//广播地址是否为受限地址(255.255.255.255)
+		fib_magic(RTM_NEWROUTE, RTN_BROADCAST, ifa->ifa_broadcast, 32, prim);		//添加广播地址路由
 
 	if (!ZERONET(prefix) && !(ifa->ifa_flags&IFA_F_SECONDARY) &&
 	    (prefix != addr || ifa->ifa_prefixlen < 32)) {
-		fib_magic(RTM_NEWROUTE, dev->flags&IFF_LOOPBACK ? RTN_LOCAL :
+		fib_magic(RTM_NEWROUTE, dev->flags&IFF_LOOPBACK ? RTN_LOCAL :		//回环设备添加到 RTN_LOCAL表, 非回环设备添加到 RTN_UNICAST表
 			  RTN_UNICAST, prefix, ifa->ifa_prefixlen, prim);
 
 		/* Add network specific broadcasts, when it takes a sense */
@@ -447,7 +448,7 @@ static void fib_add_ifaddr(struct in_ifaddr *ifa)
 	}
 }
 
-static void fib_del_ifaddr(struct in_ifaddr *ifa)
+static void fib_del_ifaddr(struct in_ifaddr *ifa)				//删除一个ip地址时, 清空路由表和路由缓存
 {
 	struct in_device *in_dev = ifa->ifa_dev;
 	struct net_device *dev = in_dev->dev;
@@ -478,7 +479,7 @@ static void fib_del_ifaddr(struct in_ifaddr *ifa)
 	   Scan address list to be sure that addresses are really gone.
 	 */
 
-	for (ifa1 = in_dev->ifa_list; ifa1; ifa1 = ifa1->ifa_next) {
+	for (ifa1 = in_dev->ifa_list; ifa1; ifa1 = ifa1->ifa_next) {		//扫描dev上的所有地址, 检查哪些需要删除
 		if (ifa->ifa_local == ifa1->ifa_local)
 			ok |= LOCAL_OK;
 		if (ifa->ifa_broadcast == ifa1->ifa_broadcast)
@@ -506,7 +507,7 @@ static void fib_del_ifaddr(struct in_ifaddr *ifa)
 			   First of all, we scan fib_info list searching
 			   for stray nexthop entries, then ignite fib_flush.
 			*/
-			if (fib_sync_down(ifa->ifa_local, NULL, 0))
+			if (fib_sync_down(ifa->ifa_local, NULL, 0))		//fib_sync_down 和 fib_flush 清理路由表
 				fib_flush();
 		}
 	}
@@ -516,7 +517,7 @@ static void fib_del_ifaddr(struct in_ifaddr *ifa)
 #undef BRD1_OK
 }
 
-static void fib_disable_ip(struct net_device *dev, int force)
+static void fib_disable_ip(struct net_device *dev, int force)				//本地设备删除了一个ip地址, 将与该ip有关的路由表删除
 {
 	if (fib_sync_down(0, dev, force))
 		fib_flush();
@@ -551,12 +552,12 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 	return NOTIFY_DONE;
 }
 
-static int fib_netdev_event(struct notifier_block *this, unsigned long event, void *ptr)
+static int fib_netdev_event(struct notifier_block *this, unsigned long event, void *ptr)				//更新路由表
 {
 	struct net_device *dev = ptr;
 	struct in_device *in_dev = __in_dev_get(dev);
 
-	if (event == NETDEV_UNREGISTER) {
+	if (event == NETDEV_UNREGISTER) {		//当设备注销时, 删除使用该设备的所有路由. 如果多路径中使用该dev, 将这个路由项清除.
 		fib_disable_ip(dev, 2);
 		return NOTIFY_DONE;
 	}
@@ -565,7 +566,7 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 		return NOTIFY_DONE;
 
 	switch (event) {
-	case NETDEV_UP:
+	case NETDEV_UP:					//当启动一个设备时, 将与该设备上所有ip相关的路由表项添加到本地路由表 ip_fib_local_table
 		for_ifa(in_dev) {
 			fib_add_ifaddr(ifa);
 		} endfor_ifa(in_dev);
@@ -574,10 +575,10 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 #endif
 		rt_cache_flush(-1);
 		break;
-	case NETDEV_DOWN:
+	case NETDEV_DOWN:					//当关闭一个设备时, 删除使用该设备的所有路由
 		fib_disable_ip(dev, 0);
 		break;
-	case NETDEV_CHANGEMTU:
+	case NETDEV_CHANGEMTU:				//当一个设备改变配置时, 刷新路由表项
 	case NETDEV_CHANGE:
 		rt_cache_flush(0);
 		break;

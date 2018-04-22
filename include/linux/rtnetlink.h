@@ -146,10 +146,9 @@ struct rtmsg
 enum
 {
 	RTN_UNSPEC,
-	RTN_UNICAST,		/* Gateway or direct route	*/
-	RTN_LOCAL,		/* Accept locally		*/
-	RTN_BROADCAST,		/* Accept locally as broadcast,
-				   send as broadcast */
+	RTN_UNICAST,		//根据路由表，该ip地址可以抵达，而且是单播地址 
+	RTN_LOCAL,		//该ip地址属于一个本地接口
+	RTN_BROADCAST,		//该地址是广播地址
 	RTN_ANYCAST,		/* Accept locally as broadcast,
 				   but send as unicast */
 	RTN_MULTICAST,		/* Multicast route		*/

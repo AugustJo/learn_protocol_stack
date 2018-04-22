@@ -207,7 +207,7 @@ static void inetdev_destroy(struct in_device *in_dev)
 	neigh_sysctl_unregister(in_dev->arp_parms);
 #endif
 	neigh_parms_release(&arp_tbl, in_dev->arp_parms);
-	arp_ifdown(dev);
+	arp_ifdown(dev);		//清除对应的arp缓存
 
 	call_rcu(&in_dev->rcu_head, in_dev_rcu_put);
 }
@@ -935,7 +935,7 @@ static void inetdev_changename(struct net_device *dev, struct in_device *in_dev)
 
 /* Called only under RTNL semaphore */
 
-static int inetdev_event(struct notifier_block *this, unsigned long event,
+static int inetdev_event(struct notifier_block *this, unsigned long event,				//更新设备的IP配置
 			 void *ptr)
 {
 	struct net_device *dev = ptr;
@@ -952,7 +952,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 		dev->ip_ptr = NULL;
 		break;
 	case NETDEV_UP:
-		if (dev->mtu < 68)
+		if (dev->mtu < 68)		//mtu小于68为合理性检查, 忽略
 			break;
 		if (dev == &loopback_dev) {
 			struct in_ifaddr *ifa;
@@ -975,11 +975,11 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 	case NETDEV_DOWN:
 		ip_mc_down(in_dev);
 		break;
-	case NETDEV_CHANGEMTU:
+	case NETDEV_CHANGEMTU:			//设备上mtu小于68, 禁用该设备上的ip协议
 		if (dev->mtu >= 68)
 			break;
 		/* MTU falled under 68, disable IP */
-	case NETDEV_UNREGISTER:
+	case NETDEV_UNREGISTER:				//禁用该设备上的ip协议
 		inetdev_destroy(in_dev);
 		break;
 	case NETDEV_CHANGENAME:

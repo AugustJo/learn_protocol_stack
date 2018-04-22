@@ -87,15 +87,28 @@ struct in_ifaddr			//设备上配置的每一个ip地址对应一个in_ifaddr实
 	struct in_ifaddr	*ifa_next;
 	struct in_device	*ifa_dev;
 	struct rcu_head		rcu_head;
+	
+	/* ifa_local和ifa_address都用来存储ip地址, 但在不同设备接口意义不同
+         (1) 在配置了广播的设备上, 都表示本地ip地址
+         (2) 在点对点设备上，ifa_address存储的是对端ip地址, 而ifa_local存储的是本地ip地址                           */
 	u32			ifa_local;
 	u32			ifa_address;
-	u32			ifa_mask;
+	
+	u32			ifa_mask;		//子网掩码
 	u32			ifa_broadcast;
 	u32			ifa_anycast;
-	unsigned char		ifa_scope;
+	
+	unsigned char		ifa_scope;	/*   地址范围，值越小表示的范围越大
+								         RT_SCOPE_UNIVERSE-在任何地方使用
+								         RT_SCOPE_SITE-本地封闭系统的内部路由
+								         RT_SCOPE_LINK-局域网内使用，如广播地址
+								         RT_SCOPE_HOST-主机内部通信，如回环地址
+								         RT_SCOPE_NOWHERE-目的地址不存在         */
+	
 	unsigned char		ifa_flags;
-	unsigned char		ifa_prefixlen;
-	char			ifa_label[IFNAMSIZ];
+	unsigned char		ifa_prefixlen;			//前缀
+	
+	char			ifa_label[IFNAMSIZ];		/* 地址标签，通常是网络设备名或者网络设备别名 */
 };
 
 extern int register_inetaddr_notifier(struct notifier_block *nb);
