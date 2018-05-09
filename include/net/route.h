@@ -38,7 +38,7 @@
 #warning This file is not supposed to be used outside of kernel.
 #endif
 
-#define RTO_ONLINK	0x01
+#define RTO_ONLINK	0x01		//标识目的位于本地子网, 无需路由查找
 
 #define RTO_CONN	0
 /* RTO_CONN is not used (being alias for 0), but preserved not to break
@@ -47,7 +47,7 @@
 #define RT_CONN_FLAGS(sk)   (RT_TOS(inet_sk(sk)->tos) | sk->sk_localroute)
 
 struct inet_peer;
-struct rtable
+struct rtable				//路由缓存
 {
 	union
 	{
@@ -55,23 +55,23 @@ struct rtable
 		struct rtable		*rt_next;
 	} u;
 
-	struct in_device	*idev;
+	struct in_device	*idev;		//出口设备的ip配置块
 	
 	unsigned		rt_flags;
-	unsigned		rt_type;
+	unsigned		rt_type;		//路由类型. 
 
-	__u32			rt_dst;	/* Path destination	*/
-	__u32			rt_src;	/* Path source		*/
-	int			rt_iif;
+	__u32			rt_dst;	/* 目的ip地址	*/
+	__u32			rt_src;	/* 源ip地址 */
+	int			rt_iif;			//入口设备标识符. 从net_device数据结构中提取. 
 
 	/* Info on neighbour */
-	__u32			rt_gateway;
+	__u32			rt_gateway;			//目的地址/下一跳网关
 
 	/* Cache lookup keys */
-	struct flowi		fl;
+	struct flowi		fl;		//存放查找hash结点的哈希值
 
 	/* Miscellaneous cached information */
-	__u32			rt_spec_dst; /* RFC1122 specific destination */
+	__u32			rt_spec_dst; /* 首选源地址 */
 	struct inet_peer	*peer; /* long-living peer info */
 };
 

@@ -145,7 +145,7 @@ static void		 ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu);
 static int rt_garbage_collect(void);
 
 
-static struct dst_ops ipv4_dst_ops = {
+static struct dst_ops ipv4_dst_ops = {		//针对ipv4的dst_ops接口
 	.family =		AF_INET,
 	.protocol =		__constant_htons(ETH_P_IP),
 	.gc =			rt_garbage_collect,
@@ -199,10 +199,10 @@ struct rt_hash_bucket {
 	spinlock_t	lock;
 } __attribute__((__aligned__(8)));
 
-static struct rt_hash_bucket 	*rt_hash_table;
-static unsigned			rt_hash_mask;
-static int			rt_hash_log;
-static unsigned int		rt_hash_rnd;
+static struct rt_hash_bucket 	*rt_hash_table;			//路由缓存
+static unsigned			rt_hash_mask;		//rt_hash_table容量(bucket)
+static int			rt_hash_log;			//rt_hash_log = log2 rt_hash_mask
+static unsigned int		rt_hash_rnd;		//随机值, 防止DOS攻击
 
 struct rt_cache_stat *rt_cache_stat;
 
@@ -469,7 +469,7 @@ static __inline__ int rt_valuable(struct rtable *rth)
 		rth->u.dst.expires;
 }
 
-static int rt_may_expire(struct rtable *rth, unsigned long tmo1, unsigned long tmo2)
+static int rt_may_expire(struct rtable *rth, unsigned long tmo1, unsigned long tmo2)			//判断一个 dst_entry 是否符合删除标准
 {
 	unsigned long age;
 	int ret = 0;
@@ -559,7 +559,7 @@ static void rt_check_expire(unsigned long dummy)
 /* This can run from both BH and non-BH contexts, the latter
  * in the case of a forced flush event.
  */
-static void rt_run_flush(unsigned long dummy)
+static void rt_run_flush(unsigned long dummy)				//清空缓存路由
 {
 	int i;
 	struct rtable *rth, *next;
@@ -649,8 +649,8 @@ static int rt_garbage_collect(void)
 {
 	static unsigned long expire = RT_GC_TIMEOUT;
 	static unsigned long last_gc;
-	static int rover;
-	static int equilibrium;
+	static int rover;			//记住上一次扫描到的bucket
+	static int equilibrium;		//剩余表项数目
 	struct rtable *rth, **rthp;
 	unsigned long now = jiffies;
 	int goal;
@@ -662,24 +662,24 @@ static int rt_garbage_collect(void)
 
 	RT_CACHE_STAT_INC(gc_total);
 
-	if (now - last_gc < ip_rt_gc_min_interval &&
-	    atomic_read(&ipv4_dst_ops.entries) < ip_rt_max_size) {
+	if (now - last_gc < ip_rt_gc_min_interval &&			//由于垃圾回收要花费大量时间, 过于频繁的清理直接返回
+	    atomic_read(&ipv4_dst_ops.entries) < ip_rt_max_size) {			//除非缓存表项数目到达 ip_rt_max_size
 		RT_CACHE_STAT_INC(gc_ignored);
 		goto out;
 	}
 
 	/* Calculate number of entries, which we want to expire now. */
-	goal = atomic_read(&ipv4_dst_ops.entries) -
-		(ip_rt_gc_elasticity << rt_hash_log);
+	goal = atomic_read(&ipv4_dst_ops.entries) -			//ipv4_dst_ops.entries 当前缓存表项数目
+		(ip_rt_gc_elasticity << rt_hash_log);			//goal 预计删除的表项数目
 	if (goal <= 0) {
 		if (equilibrium < ipv4_dst_ops.gc_thresh)
 			equilibrium = ipv4_dst_ops.gc_thresh;
-		goal = atomic_read(&ipv4_dst_ops.entries) - equilibrium;
+		goal = atomic_read(&ipv4_dst_ops.entries) - equilibrium;		//把门槛以外的表项全删掉
 		if (goal > 0) {
 			equilibrium += min_t(unsigned int, goal / 2, rt_hash_mask + 1);
-			goal = atomic_read(&ipv4_dst_ops.entries) - equilibrium;
+			goal = atomic_read(&ipv4_dst_ops.entries) - equilibrium;	//删除之前预计的 1/2
 		}
-	} else {
+	} else {			//缓存表数超过 8*2^rt_hash_log 时, 缓存过大, 严格回收
 		/* We are in dangerous area. Try to reduce cache really
 		 * aggressively.
 		 */
@@ -702,17 +702,17 @@ static int rt_garbage_collect(void)
 			unsigned long tmo = expire;
 
 			k = (k + 1) & rt_hash_mask;
-			rthp = &rt_hash_table[k].chain;
+			rthp = &rt_hash_table[k].chain;		//对于每个 bucket
 			spin_lock_bh(&rt_hash_table[k].lock);
-			while ((rth = *rthp) != NULL) {
-				if (!rt_may_expire(rth, tmo, expire)) {
-					tmo >>= 1;
+			while ((rth = *rthp) != NULL) {		//对于 bucket 中的每个缓存项
+				if (!rt_may_expire(rth, tmo, expire)) {		//路由项可以被删除吗
+					tmo >>= 1;			//设置更严格的要求(对下一个表项)
 					rthp = &rth->u.rt_next;
 					continue;
 				}
-				*rthp = rth->u.rt_next;
+				*rthp = rth->u.rt_next;			//删除该缓存
 				rt_free(rth);
-				goal--;
+				goal--;			//更新 goal
 			}
 			spin_unlock_bh(&rt_hash_table[k].lock);
 			if (goal <= 0)
@@ -745,7 +745,7 @@ static int rt_garbage_collect(void)
 
 		if (atomic_read(&ipv4_dst_ops.entries) < ip_rt_max_size)
 			goto out;
-	} while (!in_softirq() && time_before_eq(jiffies, now));
+	} while (!in_softirq() && time_before_eq(jiffies, now));		//如果在软中断上下文或扫描花费时间过长, 就跳过不做
 
 	if (atomic_read(&ipv4_dst_ops.entries) < ip_rt_max_size)
 		goto out;
@@ -773,7 +773,7 @@ static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
 	       fl1->iif     == fl2->iif;
 }
 
-static int rt_intern_hash(unsigned hash, struct rtable *rt, struct rtable **rp)
+static int rt_intern_hash(unsigned hash, struct rtable *rt, struct rtable **rp)				//添加元素到缓存表项中
 {
 	struct rtable	*rth, **rthp;
 	unsigned long	now;
@@ -792,7 +792,7 @@ restart:
 	rthp = &rt_hash_table[hash].chain;
 
 	spin_lock_bh(&rt_hash_table[hash].lock);
-	while ((rth = *rthp) != NULL) {
+	while ((rth = *rthp) != NULL) {			//对于 rt_hash_table[hash] 链上的每一个元素
 		if (compare_keys(&rth->fl, &rt->fl)) {
 			/* Put it first */
 			*rthp = rth->u.rt_next;
@@ -807,20 +807,20 @@ restart:
 			 * Since lookup is lockfree, the update writes
 			 * must be ordered for consistency on SMP.
 			 */
-			rcu_assign_pointer(rt_hash_table[hash].chain, rth);
+			rcu_assign_pointer(rt_hash_table[hash].chain, rth);		//将匹配的元素移到bucket链表的首部
 
-			rth->u.dst.__use++;
+			rth->u.dst.__use++;		//引用计数 +1
 			dst_hold(&rth->u.dst);
 			rth->u.dst.lastuse = now;
 			spin_unlock_bh(&rt_hash_table[hash].lock);
 
-			rt_drop(rt);
+			rt_drop(rt);		//rt_drop是什么意思
 			*rp = rth;
 			return 0;
 		}
 
 		if (!atomic_read(&rth->u.dst.__refcnt)) {
-			u32 score = rt_score(rth);
+			u32 score = rt_score(rth);			//打分评判路由项是否应该删除
 
 			if (score <= min_score) {
 				cand = rth;
@@ -834,7 +834,7 @@ restart:
 		rthp = &rth->u.rt_next;
 	}
 
-	if (cand) {
+	if (cand) {			//can delete
 		/* ip_rt_gc_elasticity used to be average length of chain
 		 * length, when exceeded gc becomes really aggressive.
 		 *
@@ -850,8 +850,8 @@ restart:
 	/* Try to bind route to arp only if it is output
 	   route or unicast forwarding path.
 	 */
-	if (rt->rt_type == RTN_UNICAST || rt->fl.iif == 0) {
-		int err = arp_bind_neighbour(&rt->u.dst);
+	if (rt->rt_type == RTN_UNICAST || rt->fl.iif == 0) {		//rt->fl.iif == 0 本地生成的封包, rt->rt_type == RTN_UNICAST 单播转发
+		int err = arp_bind_neighbour(&rt->u.dst);			//对于这两种情况, 创建路由与arp的绑定
 		if (err) {
 			spin_unlock_bh(&rt_hash_table[hash].lock);
 
@@ -864,12 +864,12 @@ restart:
 			   can be released. Try to shrink route cache,
 			   it is most likely it holds some neighbour records.
 			 */
-			if (attempts-- > 0) {
+			if (attempts-- > 0) {			//当进程不在中断上下文
 				int saved_elasticity = ip_rt_gc_elasticity;
 				int saved_int = ip_rt_gc_min_interval;
 				ip_rt_gc_elasticity	= 1;
 				ip_rt_gc_min_interval	= 0;
-				rt_garbage_collect();
+				rt_garbage_collect();			//垃圾回收
 				ip_rt_gc_min_interval	= saved_int;
 				ip_rt_gc_elasticity	= saved_elasticity;
 				goto restart;
@@ -1694,7 +1694,7 @@ static int ip_route_input_slow(struct sk_buff *skb, u32 daddr, u32 saddr,
 	rth->rt_flags = flags;
 
 intern:
-	err = rt_intern_hash(hash, rth, (struct rtable**)&skb->dst);
+	err = rt_intern_hash(hash, rth, (struct rtable**)&skb->dst);		//将表项添加到路由缓存
 done:
 	in_dev_put(in_dev);
 	if (out_dev)
@@ -1813,7 +1813,7 @@ martian_source:
 	goto e_inval;
 }
 
-int ip_route_input(struct sk_buff *skb, u32 daddr, u32 saddr,				//初始化skb->dst信息
+int ip_route_input(struct sk_buff *skb, u32 daddr, u32 saddr,				//入口路由缓存查找, 用于决定如何处理封包
 		   u8 tos, struct net_device *dev)
 {
 	struct rtable * rth;
@@ -1825,7 +1825,7 @@ int ip_route_input(struct sk_buff *skb, u32 daddr, u32 saddr,				//初始化skb-
 
 	rcu_read_lock();
 	for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;
-	     rth = rcu_dereference(rth->u.rt_next)) {
+	     rth = rcu_dereference(rth->u.rt_next)) {			//遍历对应hash缓存的所有表项
 		if (rth->fl.fl4_dst == daddr &&
 		    rth->fl.fl4_src == saddr &&
 		    rth->fl.iif == iif &&
@@ -1836,10 +1836,10 @@ int ip_route_input(struct sk_buff *skb, u32 daddr, u32 saddr,				//初始化skb-
 		    rth->fl.fl4_tos == tos) {
 			rth->u.dst.lastuse = jiffies;
 			dst_hold(&rth->u.dst);
-			rth->u.dst.__use++;
+			rth->u.dst.__use++;			//缓存表项的引用 +1
 			RT_CACHE_STAT_INC(in_hit);
 			rcu_read_unlock();
-			skb->dst = (struct dst_entry*)rth;
+			skb->dst = (struct dst_entry*)rth;		//skb->dst 被设为满足路由请求的缓存表项
 			return 0;
 		}
 		RT_CACHE_STAT_INC(in_hlist_search);
@@ -1866,18 +1866,18 @@ int ip_route_input(struct sk_buff *skb, u32 daddr, u32 saddr,				//初始化skb-
 				skb->nh.iph->protocol);
 			if (our
 #ifdef CONFIG_IP_MROUTE
-			    || (!LOCAL_MCAST(daddr) && IN_DEV_MFORWARD(in_dev))
+			    || (!LOCAL_MCAST(daddr) && IN_DEV_MFORWARD(in_dev))		//如果地址是多播地址或内核支持多播路由
 #endif
 			    ) {
 				rcu_read_unlock();
-				return ip_route_input_mc(skb, daddr, saddr,
+				return ip_route_input_mc(skb, daddr, saddr,		//用 ip_route_input_mc 继续查找下一跳路径
 							 tos, dev, our);
 			}
 		}
 		rcu_read_unlock();
 		return -EINVAL;
 	}
-	return ip_route_input_slow(skb, daddr, saddr, tos, dev);
+	return ip_route_input_slow(skb, daddr, saddr, tos, dev);		//路由缓存中没查到, 在路由表中继续查找
 }
 
 /*
@@ -2177,7 +2177,7 @@ e_nobufs:
 	goto done;
 }
 
-int __ip_route_output_key(struct rtable **rp, const struct flowi *flp)
+int __ip_route_output_key(struct rtable **rp, const struct flowi *flp)					//路由(.v)本地生成的封包
 {
 	unsigned hash;
 	struct rtable *rth;
@@ -2185,7 +2185,7 @@ int __ip_route_output_key(struct rtable **rp, const struct flowi *flp)
 	hash = rt_hash_code(flp->fl4_dst, flp->fl4_src ^ (flp->oif << 5), flp->fl4_tos);
 
 	rcu_read_lock_bh();
-	for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;
+	for (rth = rcu_dereference(rt_hash_table[hash].chain); rth;			//首先在缓存中查找
 		rth = rcu_dereference(rth->u.rt_next)) {
 		if (rth->fl.fl4_dst == flp->fl4_dst &&
 		    rth->fl.fl4_src == flp->fl4_src &&
@@ -2194,21 +2194,21 @@ int __ip_route_output_key(struct rtable **rp, const struct flowi *flp)
 #ifdef CONFIG_IP_ROUTE_FWMARK
 		    rth->fl.fl4_fwmark == flp->fl4_fwmark &&
 #endif
-		    !((rth->fl.fl4_tos ^ flp->fl4_tos) &
-			    (IPTOS_RT_MASK | RTO_ONLINK))) {
+		    !((rth->fl.fl4_tos ^ flp->fl4_tos) &			//只有当缓存TOS与搜索关键字中TOS匹配
+			    (IPTOS_RT_MASK | RTO_ONLINK))) {		//两者都设置了 RTO_ONLINK 字段, 或者都没有设置
 			rth->u.dst.lastuse = jiffies;
 			dst_hold(&rth->u.dst);
 			rth->u.dst.__use++;
 			RT_CACHE_STAT_INC(out_hit);
 			rcu_read_unlock_bh();
-			*rp = rth;
+			*rp = rth;			//rp 指向与搜索关键字 flp 相匹配的表项
 			return 0;
 		}
 		RT_CACHE_STAT_INC(out_hlist_search);
 	}
 	rcu_read_unlock_bh();
 
-	return ip_route_output_slow(rp, flp);
+	return ip_route_output_slow(rp, flp);	//缓存中查找不到就在路由表中查找
 }
 
 int ip_route_output_flow(struct rtable **rp, struct flowi *flp, struct sock *sk, int flags)
@@ -2703,7 +2703,7 @@ static int __init set_rhash_entries(char *str)
 }
 __setup("rhash_entries=", set_rhash_entries);
 
-int __init ip_rt_init(void)
+int __init ip_rt_init(void)				//初始化 rt_hash_table / rt_hash_mask / rt_hash_log / rt_hash_rnd
 {
 	int i, order, goal, rc = 0;
 

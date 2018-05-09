@@ -112,15 +112,15 @@ static int dst_discard_out(struct sk_buff *skb)
 	return 0;
 }
 
-void * dst_alloc(struct dst_ops * ops)
+void * dst_alloc(struct dst_ops * ops)				//分配缓存表项
 {
-	struct dst_entry * dst;
+	struct dst_entry * dst;			//分配的是比dst_entry更大的表项
 
 	if (ops->gc && atomic_read(&ops->entries) > ops->gc_thresh) {
 		if (ops->gc())
 			return NULL;
 	}
-	dst = kmem_cache_alloc(ops->kmem_cachep, SLAB_ATOMIC);
+	dst = kmem_cache_alloc(ops->kmem_cachep, SLAB_ATOMIC);			//对ipv4分配的是rtable, 对ipv6分配的是rt6_info
 	if (!dst)
 		return NULL;
 	memset(dst, 0, ops->entry_size);
@@ -218,7 +218,7 @@ again:
  *
  * Commented and originally written by Alexey.
  */
-static void dst_ifdown(struct dst_entry *dst, int unregister)
+static void dst_ifdown(struct dst_entry *dst, int unregister)				//沿着 child 对每个 dst_entry 实例处理注销和关闭事件
 {
 	struct net_device *dev = dst->dev;
 
@@ -245,8 +245,8 @@ static void dst_ifdown(struct dst_entry *dst, int unregister)
 		 dst->dev == dev);
 }
 
-static int dst_dev_event(struct notifier_block *this, unsigned long event, void *ptr)
-{
+static int dst_dev_event(struct notifier_block *this, unsigned long event, void *ptr)		
+{												//处理 NETDEV_UNREGISTER(注销) 和 NETDEV_DOWN(关闭) 两个事件
 	struct net_device *dev = ptr;
 	struct dst_entry *dst;
 
@@ -268,7 +268,7 @@ struct notifier_block dst_dev_notifier = {
 	.notifier_call	= dst_dev_event,
 };
 
-void __init dst_init(void)
+void __init dst_init(void)				//向 netdev_chain 注册
 {
 	register_netdevice_notifier(&dst_dev_notifier);
 }

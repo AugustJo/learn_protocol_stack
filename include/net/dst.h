@@ -35,19 +35,19 @@
 
 struct sk_buff;
 
-struct dst_entry		//路由表缓存项(存储与协议无关的部分)
+struct dst_entry		//存储缓存路由中与协议无关的信息, 包括接收和发送封包的处理
 {
 	struct dst_entry        *next;
 	atomic_t		__refcnt;	/* client references	*/
 	int			__use;
-	struct dst_entry	*child;
+	struct dst_entry	*child; 	//用于IPsec, 链表中最后一个实例的 input / output 被用于路由决策, 前面被用来做IPsec变换(加密等)
 	struct net_device       *dev;
 	int			obsolete;
 	int			flags;
 #define DST_HOST		1
 #define DST_NOXFRM		2
 #define DST_NOPOLICY		4
-#define DST_NOHASH		8
+#define DST_NOHASH		8			//标识该 dst_entry 实例不在路由缓存中(IPsec)
 	unsigned long		lastuse;
 	unsigned long		expires;
 
@@ -55,7 +55,7 @@ struct dst_entry		//路由表缓存项(存储与协议无关的部分)
 	unsigned short		trailer_len;	/* space to reserve at tail */
 
 	u32			metrics[RTAX_MAX];
-	struct dst_entry	*path;
+	struct dst_entry	*path;			//指向 child 链表的最后一个实例
 
 	unsigned long		rate_last;	/* rate limiting for ICMP */
 	unsigned long		rate_tokens;
@@ -73,27 +73,27 @@ struct dst_entry		//路由表缓存项(存储与协议无关的部分)
 	__u32			tclassid;  //高16位in 低16位out
 #endif
 
-	struct  dst_ops	        *ops;
+	struct  dst_ops	        *ops;		//提供一组虚函数, 让高层协议操作缓存表项
 	struct rcu_head		rcu_head;
 		
 	char			info[0];
 };
 
 
-struct dst_ops
+struct dst_ops			//提供一组 dst 接口函数, 存放在 dst_entry 中
 {
 	unsigned short		family;
 	unsigned short		protocol;
 	unsigned		gc_thresh;
 
-	int			(*gc)(void);
-	struct dst_entry *	(*check)(struct dst_entry *, __u32 cookie);
-	void			(*destroy)(struct dst_entry *);
-	void			(*ifdown)(struct dst_entry *, int how);
-	struct dst_entry *	(*negative_advice)(struct dst_entry *);
-	void			(*link_failure)(struct sk_buff *);
-	void			(*update_pmtu)(struct dst_entry *dst, u32 mtu);
-	int			(*get_mss)(struct dst_entry *dst, u32 mtu);
+	int			(*gc)(void);			//垃圾回收
+	struct dst_entry *	(*check)(struct dst_entry *, __u32 cookie);		//检查缓存项状态
+	void			(*destroy)(struct dst_entry *);						//删除一个 dst_entry 结构
+	void			(*ifdown)(struct dst_entry *, int how);				//设备注销时对每一个缓存调用
+	struct dst_entry *	(*negative_advice)(struct dst_entry *);			//向 dst 通知 dst_entry 出现问题
+	void			(*link_failure)(struct sk_buff *);					//连接失败, 向上层协议发送不可达(icmp)
+	void			(*update_pmtu)(struct dst_entry *dst, u32 mtu);		//更新缓存路由项的 PMTU
+	int			(*get_mss)(struct dst_entry *dst, u32 mtu);				//返回该路由使用的 TCP 最大段
 	int			entry_size;
 
 	atomic_t		entries;
