@@ -49,7 +49,7 @@
 
 static rwlock_t fib_info_lock = RW_LOCK_UNLOCKED;
 static struct hlist_head *fib_info_hash;
-static struct hlist_head *fib_info_laddrhash;
+static struct hlist_head *fib_info_laddrhash;		//路由表项存在首选源地址时, 才存入该表
 static unsigned int fib_hash_size;
 static unsigned int fib_info_cnt;			//记录 fib_info 个数 ( fib_create_info  free_fib_info )
 
@@ -711,7 +711,7 @@ fib_create_info(const struct rtmsg *r, struct kern_rta *rta,
 		} endfor_nexthops(fi)
 	}
 
-	if (fi->fib_prefsrc) {
+	if (fi->fib_prefsrc) {		
 		if (r->rtm_type != RTN_LOCAL || rta->rta_dst == NULL ||
 		    memcmp(&fi->fib_prefsrc, rta->rta_dst, 4))
 			if (inet_addr_type(fi->fib_prefsrc) != RTN_LOCAL)
@@ -731,10 +731,10 @@ link_it:
 	write_lock(&fib_info_lock);
 	hlist_add_head(&fi->fib_hash,
 		       &fib_info_hash[fib_info_hashfn(fi)]);
-	if (fi->fib_prefsrc) {
+	if (fi->fib_prefsrc) {			//如果提供了首选源地址
 		struct hlist_head *head;
 
-		head = &fib_info_laddrhash[fib_laddr_hashfn(fi->fib_prefsrc)];
+		head = &fib_info_laddrhash[fib_laddr_hashfn(fi->fib_prefsrc)];		//将 fib_info 添加到 fib_info_laddrhash 中
 		hlist_add_head(&fi->fib_lhash, head);
 	}
 	change_nexthops(fi) {

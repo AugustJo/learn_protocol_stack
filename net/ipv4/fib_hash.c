@@ -57,9 +57,9 @@ struct fib_node {			//每个单独的子网对应一个 fib_node
 struct fn_zone {			//掩码长度相同或为一个 zone
 	struct fn_zone		*fz_next;	/* Next not empty zone	*/
 	struct hlist_head	*fz_hash;	/* Hash table pointer	*/
-	int			fz_nent;	/* Number of entries	*/
+	int			fz_nent;	//实例个数
 
-	int			fz_divisor;	/* Hash divisor		*/		//存储bucket数量
+	int			fz_divisor;	//hash 表 fz_hash 的容量
 	u32			fz_hashmask;	/* (fz_divisor - 1)	*/
 #define FZ_HASHMASK(fz)		((fz)->fz_hashmask)
 
@@ -425,7 +425,7 @@ static struct fib_alias *fib_find_alias(struct fib_node *fn, u8 tos, u32 prio)
 }
 
 static int
-fn_hash_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
+fn_hash_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,				//向 fib_table 添加路由
 	       struct nlmsghdr *n, struct netlink_skb_parms *req)
 {
 	struct fn_hash *table = (struct fn_hash *) tb->tb_data;
@@ -451,18 +451,18 @@ fn_hash_insert(struct fib_table *tb, struct rtmsg *r, struct kern_rta *rta,
 		memcpy(&dst, rta->rta_dst, 4);
 		if (dst & ~FZ_MASK(fz))
 			return -EINVAL;
-		key = fz_key(dst, fz);
+		key = fz_key(dst, fz);		//根据地址和掩码构造搜索 key 值
 	}
 
-	if  ((fi = fib_create_info(r, rta, n, &err)) == NULL)
+	if  ((fi = fib_create_info(r, rta, n, &err)) == NULL)		//若和关键字匹配的 fib_info 不存在, 则创建一个
 		return err;
 
-	if (fz->fz_nent > (fz->fz_divisor<<1) &&
-	    fz->fz_divisor < FZ_MAX_DIVISOR &&
+	if (fz->fz_nent > (fz->fz_divisor<<1) &&		//实例数超过 hash 表容量
+	    fz->fz_divisor < FZ_MAX_DIVISOR &&			//还可以调整
 	    (z==32 || (1<<z) > fz->fz_divisor))
-		fn_rehash_zone(fz);
+		fn_rehash_zone(fz);				//调整 zone 容量
 
-	f = fib_find_node(fz, key);
+	f = fib_find_node(fz, key);		//查找与 key 匹配的 fib_node 是否存在
 	fa = fib_find_alias(f, tos, fi->fib_priority);
 
 	/* Now fa, if non-NULL, points to the first fib alias

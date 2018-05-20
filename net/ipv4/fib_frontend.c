@@ -50,9 +50,9 @@
 #ifndef CONFIG_IP_MULTIPLE_TABLES
 
 #define RT_TABLE_MIN RT_TABLE_MAIN
-
-struct fib_table *ip_fib_local_table;
-struct fib_table *ip_fib_main_table;
+//两个默认路由表, 系统启动时创建
+struct fib_table *ip_fib_local_table;		//存储到本地的地址(127.0.0.1 or 本机地址), 包括广播地址
+struct fib_table *ip_fib_main_table;		//存储其它路由表项: 用户静态配置的地址、路由协议动态获取的地址
 
 #else
 
