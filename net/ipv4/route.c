@@ -479,15 +479,15 @@ static int rt_may_expire(struct rtable *rth, unsigned long tmo1, unsigned long t
 
 	ret = 1;
 	if (rth->u.dst.expires &&
-	    time_after_eq(jiffies, rth->u.dst.expires))
+	    time_after_eq(jiffies, rth->u.dst.expires))			//未过期
 		goto out;
 
 	age = jiffies - rth->u.dst.lastuse;
 	ret = 0;
-	if ((age <= tmo1 && !rt_fast_clean(rth)) ||
-	    (age <= tmo2 && rt_valuable(rth)))
+	if ((age <= tmo1 && !rt_fast_clean(rth)) ||		//非广播和多播(单播)
+	    (age <= tmo2 && rt_valuable(rth)))		//非 RTCF_REDIRECTED 和 RTCF_NOTIFY (价值不够)
 		goto out;
-	ret = 1;
+	ret = 1;									//就可以删除
 out:	return ret;
 }
 
@@ -513,9 +513,9 @@ static inline u32 rt_score(struct rtable *rt)
 }
 
 /* This runs via a timer and thus is always in BH context. */
-static void rt_check_expire(unsigned long dummy)
+static void rt_check_expire(unsigned long dummy)					//异步清理路由缓存
 {
-	static int rover;
+	static int rover;			//记录上次扫描到的bucket
 	int i = rover, t;
 	struct rtable *rth, **rthp;
 	unsigned long now = jiffies;
@@ -524,19 +524,19 @@ static void rt_check_expire(unsigned long dummy)
 	     t -= ip_rt_gc_timeout) {
 		unsigned long tmo = ip_rt_gc_timeout;
 
-		i = (i + 1) & rt_hash_mask;
+		i = (i + 1) & rt_hash_mask;		//从上次扫描的下一个 bucket 开始扫
 		rthp = &rt_hash_table[i].chain;
 
 		spin_lock(&rt_hash_table[i].lock);
 		while ((rth = *rthp) != NULL) {
 			if (rth->u.dst.expires) {
 				/* Entry is expired even if it is in use */
-				if (time_before_eq(now, rth->u.dst.expires)) {
+				if (time_before_eq(now, rth->u.dst.expires)) {		//路由缓存未过期
 					tmo >>= 1;
 					rthp = &rth->u.rt_next;
 					continue;
 				}
-			} else if (!rt_may_expire(rth, tmo, ip_rt_gc_timeout)) {
+			} else if (!rt_may_expire(rth, tmo, ip_rt_gc_timeout)) {		//不满足删除条件
 				tmo >>= 1;
 				rthp = &rth->u.rt_next;
 				continue;
@@ -549,11 +549,11 @@ static void rt_check_expire(unsigned long dummy)
 		spin_unlock(&rt_hash_table[i].lock);
 
 		/* Fallback loop breaker. */
-		if (time_after(jiffies, now))
+		if (time_after(jiffies, now))		//时间到了停止扫描
 			break;
 	}
 	rover = i;
-	mod_timer(&rt_periodic_timer, now + ip_rt_gc_interval);
+	mod_timer(&rt_periodic_timer, now + ip_rt_gc_interval);			//定时器下一次到期时间为 now + ip_rt_gc_interval, 避免不同子系统在同一时刻到期
 }
 
 /* This can run from both BH and non-BH contexts, the latter

@@ -48,18 +48,18 @@
 static kmem_cache_t *fn_hash_kmem;
 static kmem_cache_t *fn_alias_kmem;
 
-struct fib_node {
-	struct hlist_node	fn_hash;
-	struct list_head	fn_alias;
-	u32			fn_key;
+struct fib_node {			//每个单独的子网对应一个 fib_node
+	struct hlist_node	fn_hash;		//指向33个hash表
+	struct list_head	fn_alias;		//存储目的子网相同的不同路由(利用偏移量)
+	u32			fn_key;		//标识子网 ( 对于10.1.1.0/24, 其值为10.1.1 )
 };
 
-struct fn_zone {
+struct fn_zone {			//掩码长度相同或为一个 zone
 	struct fn_zone		*fz_next;	/* Next not empty zone	*/
 	struct hlist_head	*fz_hash;	/* Hash table pointer	*/
 	int			fz_nent;	/* Number of entries	*/
 
-	int			fz_divisor;	/* Hash divisor		*/
+	int			fz_divisor;	/* Hash divisor		*/		//存储bucket数量
 	u32			fz_hashmask;	/* (fz_divisor - 1)	*/
 #define FZ_HASHMASK(fz)		((fz)->fz_hashmask)
 
@@ -72,8 +72,8 @@ struct fn_zone {
  * can be cheaper than memory lookup, so that FZ_* macros are used.
  */
 
-struct fn_hash {
-	struct fn_zone	*fn_zones[33];
+struct fn_hash {		//
+	struct fn_zone	*fn_zones[33];		//掩码从0-32, 共33个域
 	struct fn_zone	*fn_zone_list;
 };
 

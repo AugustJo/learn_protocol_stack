@@ -51,7 +51,7 @@ static rwlock_t fib_info_lock = RW_LOCK_UNLOCKED;
 static struct hlist_head *fib_info_hash;
 static struct hlist_head *fib_info_laddrhash;
 static unsigned int fib_hash_size;
-static unsigned int fib_info_cnt;
+static unsigned int fib_info_cnt;			//记录 fib_info 个数 ( fib_create_info  free_fib_info )
 
 #define DEVINDEX_HASHBITS 8
 #define DEVINDEX_HASHSIZE (1U << DEVINDEX_HASHBITS)
@@ -595,9 +595,9 @@ fib_create_info(const struct rtmsg *r, struct kern_rta *rta,
 #endif
 
 	err = -ENOBUFS;
-	if (fib_info_cnt >= fib_hash_size) {
+	if (fib_info_cnt >= fib_hash_size) {		//检查是否超过 hash 表容量 fib_hash_size
 		unsigned int new_size = fib_hash_size << 1;
-		struct hlist_head *new_info_hash;
+		struct hlist_head *new_info_hash;		//超过则 double fib_info_hash 和 fib_info_laddrhash
 		struct hlist_head *new_laddrhash;
 		unsigned int bytes;
 

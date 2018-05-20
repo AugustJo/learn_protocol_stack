@@ -49,7 +49,7 @@ struct dst_entry		//存储缓存路由中与协议无关的信息, 包括接收�
 #define DST_NOPOLICY		4
 #define DST_NOHASH		8			//标识该 dst_entry 实例不在路由缓存中(IPsec)
 	unsigned long		lastuse;
-	unsigned long		expires;
+	unsigned long		expires;		//表项过期时间(默认为0不过期)
 
 	unsigned short		header_len;	/* more space at head required */
 	unsigned short		trailer_len;	/* space to reserve at tail */

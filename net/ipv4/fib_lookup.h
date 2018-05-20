@@ -5,8 +5,8 @@
 #include <linux/list.h>
 #include <net/ip_fib.h>
 
-struct fib_alias {
-	struct list_head	fa_list;
+struct fib_alias {				//通过与fib_info关联, 保存下一跳信息
+	struct list_head	fa_list;			//存储目的子网(fib_node)相同的不同路由
 	struct fib_info		*fa_info;
 	u8			fa_tos;
 	u8			fa_type;

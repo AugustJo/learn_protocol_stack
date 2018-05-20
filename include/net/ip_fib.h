@@ -62,7 +62,7 @@ struct fib_nh {
  * This structure contains data shared by many of routes.
  */
 
-struct fib_info {			//路由表信息
+struct fib_info {			//下一跳信息
 	struct hlist_node	fib_hash;		//通过 fib_hash 被插到 fib_info_hash表中
 	struct hlist_node	fib_lhash;		//在路由表有首选源地址时, 通过 fib_lhash 插到 fib_info_laddrhash表中
 	int			fib_treeref;
@@ -77,7 +77,7 @@ struct fib_info {			//路由表信息
 #define fib_window fib_metrics[RTAX_WINDOW-1]
 #define fib_rtt fib_metrics[RTAX_RTT-1]
 #define fib_advmss fib_metrics[RTAX_ADVMSS-1]
-	int			fib_nhs;
+	int			fib_nhs;		//下一跳路由个数
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	int			fib_power;
 #endif
@@ -119,7 +119,7 @@ struct fib_result {
 #define FIB_RES_DEV(res)		(FIB_RES_NH(res).nh_dev)
 #define FIB_RES_OIF(res)		(FIB_RES_NH(res).nh_oif)
 
-struct fib_table {
+struct fib_table {				//路由表
 	unsigned char	tb_id;
 	unsigned	tb_stamp;
 	int		(*tb_lookup)(struct fib_table *tb, const struct flowi *flp, struct fib_result *res);
