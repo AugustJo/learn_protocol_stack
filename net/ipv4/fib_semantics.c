@@ -762,20 +762,20 @@ failure:
 	return NULL;
 }
 
-int fib_semantic_match(struct list_head *head, const struct flowi *flp,
+int fib_semantic_match(struct list_head *head, const struct flowi *flp,						//检查 fib_node 中是否有与 flp 完全匹配的项
 		       struct fib_result *res, int prefixlen)
 {
 	struct fib_alias *fa;
 	int nh_sel = 0;
 
-	list_for_each_entry(fa, head, fa_list) {
+	list_for_each_entry(fa, head, fa_list) {		//对于每个 alias
 		int err;
 
-		if (fa->fa_tos &&
+		if (fa->fa_tos &&					//检查 tos 
 		    fa->fa_tos != flp->fl4_tos)
 			continue;
 
-		if (fa->fa_scope < flp->fl4_scope)
+		if (fa->fa_scope < flp->fl4_scope)	//检查scope
 			continue;
 
 		fa->fa_state |= FA_S_ACCESSED;
@@ -784,10 +784,10 @@ int fib_semantic_match(struct list_head *head, const struct flowi *flp,
 		if (err == 0) {
 			struct fib_info *fi = fa->fa_info;
 
-			if (fi->fib_flags & RTNH_F_DEAD)
+			if (fi->fib_flags & RTNH_F_DEAD)	//fib_info 是否无效
 				continue;
 
-			switch (fa->fa_type) {
+			switch (fa->fa_type) {			//检查路由类型
 			case RTN_UNICAST:
 			case RTN_LOCAL:
 			case RTN_BROADCAST:
@@ -796,10 +796,10 @@ int fib_semantic_match(struct list_head *head, const struct flowi *flp,
 				for_nexthops(fi) {
 					if (nh->nh_flags&RTNH_F_DEAD)
 						continue;
-					if (!flp->oif || flp->oif == nh->nh_oif)
+					if (!flp->oif || flp->oif == nh->nh_oif)	//如果搜索条件没给定出口设备, 或找到出口设备, 则break
 						break;
 				}
-#ifdef CONFIG_IP_ROUTE_MULTIPATH
+#ifdef CONFIG_IP_ROUTE_MULTIPATH		//当内核支持多路径时
 				if (nhsel < fi->fib_nhs) {
 					nh_sel = nhsel;
 					goto out_fill_res;

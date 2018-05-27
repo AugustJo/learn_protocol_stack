@@ -158,7 +158,7 @@ unsigned inet_addr_type(u32 addr)
    - check, that packet arrived from expected physical interface.
  */
 
-int fib_validate_source(u32 src, u32 dst, u8 tos, int oif,
+int fib_validate_source(u32 src, u32 dst, u8 tos, int oif,						//对源 ip 地址检验, 防止 ip 欺骗
 			struct net_device *dev, u32 *spec_dst, u32 *itag)
 {
 	struct in_device *in_dev;
