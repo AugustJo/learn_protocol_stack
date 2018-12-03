@@ -241,48 +241,25 @@ fn_new_zone(struct fn_hash *table, int z)
 }
 
 static int
-fn_hash_lookup						//所有路由表查找都经 fn_hash_lookup, 无论流向及是否策略路由
-			(struct fib_table *tb, 			//搜索的路由表
-			const struct flowi *flp, 		//搜索关键字
-			struct fib_result *res)			//存储路由查找返回结果
+fn_hash_lookup(struct fib_table *tb, const struct flowi *flp, struct fib_result *res)
 {
 	int err;
 	struct fn_zone *fz;
 	struct fn_hash *t = (struct fn_hash*)tb->tb_data;
 
 	read_lock(&fib_hash_lock);
-	for (fz = t->fn_zone_list; fz; fz = fz->fz_next) {		//LPM算法, 从掩码最长的zone开始遍历
+	for (fz = t->fn_zone_list; fz; fz = fz->fz_next) {
 		struct hlist_head *head;
 		struct hlist_node *node;
 		struct fib_node *f;
-		u32 k = fz_key(flp->fl4_dst, fz);		//由 dst 和掩码获取 key, 例如 dst: 10.1.1.24 mask: 255.255.255.0
-												//key 值为10.1.1.0, 在 fz_hash 表中找有没有跟其相符的表项
-		head = &fz->fz_hash[fn_hash(k, fz)];	//路由被存在 hash 表内, head 为正确的 bucket
+		u32 k = fz_key(flp->fl4_dst, fz);
 
-									/*			hash 表 、bucket 、fib_node 对应关系
-												+-------------+  +-----------------+  +--------------+	+--------------+
-												|rt_hash_table|->|rt_hash_bucket[0]|->|   u.dst 	 |->|	u.dst	   |-> ~~~ 
-												+-------------+  +-----------------+  +--------------+	+--------------+
-																 |rt_hash_bucket[1]|  ~ 		  ~  ~				~
-																 +-----------------+  +--------------+	+--------------+
-																 |rt_hash_bucket[2]|  |   peer		 |	|	peer	   |
-																 +-----------------+  +--------------+	+--------------+
-																 ~				   ~
-																 ~				   ~  struct rtable
-																 +-----------------+  +--------------+
-																 |rt_hash_bucket[n]|->|   u.dst 	 |-> ~~~
-																 +-----------------+  +--------------+
-																					  ~ 			 ~
-																					  +--------------+
-																					  |   peer		 |
-																					  +--------------+
-									*/
-
-		hlist_for_each_entry(f, node, head, fn_hash) {		//遍历 bucket 中的 fib_node, 查找匹配路由项
+		head = &fz->fz_hash[fn_hash(k, fz)];
+		hlist_for_each_entry(f, node, head, fn_hash) {
 			if (f->fn_key != k)
 				continue;
 
-			err = fib_semantic_match(&f->fn_alias,		//与 key 值匹配后, 检查 flp 其他搜索字段
+			err = fib_semantic_match(&f->fn_alias,
 						 flp, res,
 						 fz->fz_order);
 			if (err <= 0)

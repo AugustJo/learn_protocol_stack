@@ -778,7 +778,7 @@ u32 inet_select_addr(const struct net_device *dev, u32 dst, int scope)
 		goto no_in_dev;
 
 	for_primary_ifa(in_dev) {
-		if (ifa->ifa_scope > scope)			//scope 表示到达目的地的距离, 所以下一跳 scope 不能变大
+		if (ifa->ifa_scope > scope)
 			continue;
 		if (!dst || inet_ifa_match(dst, ifa)) {
 			addr = ifa->ifa_local;
@@ -797,7 +797,7 @@ no_in_dev:
 	   in this case. It is importnat that lo is the first interface
 	   in dev_base list.
 	 */
-	read_lock(&dev_base_lock);					//dev 上的地址都不满足 dst 和 scope, 尝试其它设备.
+	read_lock(&dev_base_lock);
 	rcu_read_lock();
 	for (dev = dev_base; dev; dev = dev->next) {
 		if ((in_dev = __in_dev_get(dev)) == NULL)

@@ -11,7 +11,7 @@
 #include <asm/atomic.h>
 
 struct flowi {
-	int	oif;			//out interface
+	int	oif;
 	int	iif;
 
 	union {
